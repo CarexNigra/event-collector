@@ -1,7 +1,7 @@
 [tool.poetry]
-name = "consumer"
+name = "eventhub"
 version = "0.1.0"
-description = "app that consumes messages from the message bus, validates and stores to s3"
+description = "System for events storage"
 authors = ["Lara Simonova <lara@miro.com>"]
 readme = "README.md"
 
@@ -10,11 +10,21 @@ python = "^3.11"
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.11.0"
+mypy = "^1.7.0"
 flake8 = "^6.1.0"
 isort = "^5.12.0"
-mypy = "^1.7.0"
 pre-commit = "^3.5.0"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[mypy]
+ignore_missing_imports = true
+
+[tool.black]
+line-length = 120
+include = '\.pyi?$'
+
+[tool.isort]
+profile = "black"

@@ -1,0 +1,51 @@
+# TODO: 
+#    - uncomment whern makefile will be ready and apps work
+#    - define 2 different steps: 1 for api and another 1 for consumer check
+
+# name: CI eventhub
+
+# on:
+#   push:
+#     branches: ["**"]
+#     tags: ["**"]
+#     paths-ignore:
+#       - 'docs/**'
+#       - 'research/**'
+#       - '.github/**'
+#       - '!.github/workflows/on_push.yml'
+
+# defaults:
+#   run:
+#     shell: bash
+
+# env:
+#   BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
+
+# permissions:
+#   contents: read
+#   id-token: write
+#   checks: write
+
+# jobs:
+#   checks:
+#     runs-on: self-hosted-k8s
+#     steps:
+#       - uses: actions/checkout@v3
+#       - name: Install Poetry
+#         run: pip install --upgrade pip && pip install -U poetry==1.6.1 poetry-plugin-export==1.5.0
+#       - name: Set up Python 3.11
+#         uses: actions/setup-python@v4
+#         with:
+#           python-version: 3.11
+#           cache: poetry
+#       - name: Install Poetry dependencies
+#         run: |
+#           poetry install
+#       - name: Diff requirements
+#         run: make diff-requirements
+#       - name: Run code style check
+#         run: |
+#           make style-check
+#           make static-check
+#       - name: Run tests
+#         run: make tests
