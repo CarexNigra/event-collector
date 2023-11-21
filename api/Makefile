@@ -49,15 +49,6 @@ restyle: ## Reformat code with black and isort.
 	poetry run black .
 	poetry run isort --atomic .
 
-# TODO: MLP-92: Get rid of requirements.txt and build environment with poetry instead.
-.PHONY: requirements
-requirements: ## Generate requirements.txt based on poetry env.
-	poetry export -f requirements.txt --output requirements.txt --without-hashes --with dev
-
-.PHONY: diff-requirements
-diff-requirements: ## Display diff between existing requirements.txt and poetry env.
-	poetry export -f requirements.txt --without-hashes --with dev | tail -n +2 | diff <(tail -n +2 requirements.txt) -
-
 .PHONY: clean-prometheus-dir
 clean-prometheus-dir: ## Clean Prometheus multiprocess directory, if exists.
 	mkdir -p $(PROMETHEUS_MULTIPROC_DIR)
