@@ -30,7 +30,6 @@ install: ## Create poetry environment and install all dependencies.
 	poetry config virtualenvs.in-project true --local
 	poetry env use 3.11
 	poetry install
-	poetry run pre-commit install --allow-missing-config
 
 .PHONY: style-check
 style-check: ## Run style checks.
