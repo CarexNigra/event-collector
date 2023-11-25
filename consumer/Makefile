@@ -72,6 +72,10 @@ else
 	PYTHONPATH=. poetry run pytest -s
 endif
 
+.PHONY: battery
+battery: style-check static-check tests ## Run all checks and tests
+	printf "\nPassed all checks and tests...\n"
+
 .PHONY: run
 run: clean-prometheus-dir ## Run service with dev configuration.
 ifeq (plain, $(filter plain,$(MAKECMDGOALS)))

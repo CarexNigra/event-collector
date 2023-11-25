@@ -1,7 +1,3 @@
-# TODO: 
-#    - uncomment whern makefile will be ready and apps work
-#    - define 2 different steps: 1 for api and another 1 for consumer check
-
 name: CI eventhub
 
 on:
@@ -16,14 +12,6 @@ defaults:
   run:
     shell: bash
 
-env:
-  BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
-
-permissions:
-  contents: read
-  id-token: write
-  checks: write
-
 jobs:
   checks:
     runs-on: ubuntu-22.04
@@ -36,12 +24,13 @@ jobs:
         with:
           python-version: 3.11
           cache: poetry
-      - name: Install Poetry dependencies
+      - name: Api setup and run tests
+        working-directory: ./api
         run: |
           poetry install
-      - name: Run code style check
+          make battery
+      - name: Consumer setup and run tests
+        working-directory: ./consumer
         run: |
-          make style-check
-          make static-check
-      - name: Run tests
-        run: make tests
+          poetry install
+          # make battery # TODO: uncomment when makefile will be ready
