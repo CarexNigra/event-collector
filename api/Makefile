@@ -73,3 +73,11 @@ ifeq (plain, $(filter plain,$(MAKECMDGOALS)))
 else
 	poetry run $(SHELL) serve.sh
 endif
+
+.PHONY: create-proto
+create-proto: ## Generate proto files
+ifeq (plain, $(filter plain,$(MAKECMDGOALS)))
+	$(SHELL) proto_generate.sh
+else
+	poetry run $(SHELL) proto_generate.sh
+endif
