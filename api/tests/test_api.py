@@ -1,13 +1,26 @@
 from fastapi.testclient import TestClient
+from unittest.mock import Mock, patch
+import pytest
 
-from api.app import app
+from api.app import app, create_kafka_producer, KafkaProducerWrapper 
 
 import uuid
 
 client = TestClient(app)
 
 
-def test_post():
+
+@pytest.fixture
+def kafka_producer_mock():
+    # Mock the Kafka producer
+    with patch("api.app.create_kafka_producer") as create_kafka_producer_mock: # TODO: Do we need to import create_kafka_producer to use it here?
+        producer_mock = Mock(spec=KafkaProducerWrapper)
+        create_kafka_producer_mock.return_value = producer_mock
+        yield producer_mock
+
+
+
+def test_post(kafka_producer_mock):
     response = client.post(
         "/store", 
         headers={"Content-type": "application/json"},
@@ -25,15 +38,18 @@ def test_post():
                      "user_role": "OWNER"},  
         }
     )
-    # print(f"Response Status Code: {response.status_code}")
-    # print(f"Response Content: {response.text}")
+
+    print("Rsp jsn", response.json())  # Print the entire response
+
+
     assert response.status_code == 204
+    kafka_producer_mock.produce.assert_called_once()  # Check if produce method is called
 
 
 
 
 # BODY FORMAT / DATE-TIME
-def test_post_datetime_in_future():
+def test_post_datetime_in_future(kafka_producer_mock):
     response = client.post(
         "/store", 
         headers={"Content-type": "application/json"}, 
@@ -52,9 +68,10 @@ def test_post_datetime_in_future():
         }
     )
     assert response.status_code == 400
+    kafka_producer_mock.produce.assert_not_called()  # Ensure produce method is not called
     
 
-def test_post_datetime_in_past():
+def test_post_datetime_in_past(kafka_producer_mock):
     response = client.post(
         "/store", 
         headers={"Content-type": "application/json"}, 
@@ -73,11 +90,12 @@ def test_post_datetime_in_past():
         }
     )
     assert response.status_code == 400
+    kafka_producer_mock.produce.assert_not_called()  # Ensure produce method is not called
 
 
 
 # BODY FORMAT / MESSAGE ID
-def test_post_wrong_message_id_format():
+def test_post_wrong_message_id_format(kafka_producer_mock):
     response = client.post(
         "/store", 
         headers={"Content-type": "application/json"}, 
@@ -96,11 +114,12 @@ def test_post_wrong_message_id_format():
         }
     )
     assert response.status_code == 400
+    kafka_producer_mock.produce.assert_not_called()  # Ensure produce method is not called
 
 
 
 # BODY FORMAT / EVENT NAME
-def test_post_wrong_event_name():
+def test_post_wrong_event_name(kafka_producer_mock):
     response = client.post(
         "/store", 
         headers={"Content-type": "application/json"}, 
@@ -119,5 +138,8 @@ def test_post_wrong_event_name():
         }
     )
     assert response.status_code == 400
+    kafka_producer_mock.produce.assert_not_called()  # Ensure produce method is not called
+
+
 
 

@@ -2,6 +2,22 @@ import uuid
 from pydantic import BaseModel
 from gen_protoc.events.test_events_pb2 import EventContext, TestEvent, YetAnotherTestEvent
 
+from confluent_kafka import Producer
+
+class KafkaProducerWrapper:
+    def __init__(self, producer):
+        self.producer = producer
+
+    def produce(self, topic, value):
+        self.producer.produce(topic, value)
+        self.producer.flush()
+
+
+def create_kafka_producer():
+    kafka_producer_config = {
+        "bootstrap.servers": "localhost:9092", # TODO: What configs should be added here?
+    }
+    return KafkaProducerWrapper(Producer(kafka_producer_config))
 
 class RequestEventContext(BaseModel):
     sent_at: int 
@@ -49,5 +65,14 @@ if event_item.event_name in events_mapping:
 
     # (6) Serialize Event object
     serialized_event = event_instance.SerializeToString()
+    print(type(serialized_event))
     print(serialized_event)
+
+    # (7) Send to kafka
+    kafka_producer_config = {"bootstrap.servers": "localhost:9092"}
+    producer = create_kafka_producer() 
+    print(producer)
+    producer.produce(topic = "event_message", value=serialized_event)
+
     
+

@@ -1,9 +1,15 @@
-from fastapi import FastAPI, HTTPException, Request, Response, status
+from fastapi import FastAPI, HTTPException, Request, Response, status, Depends
 from datetime import datetime
 import uuid
 from pydantic import BaseModel, field_validator
 from gen_protoc.events.test_events_pb2 import EventContext, TestEvent, YetAnotherTestEvent
+from confluent_kafka import Producer
 
+
+
+##############################################
+# PART 1: Event models
+##############################################
 
 events_mapping = {
     "test_event_name": TestEvent,
@@ -27,6 +33,7 @@ def is_valid_date(datetime_to_check_int: int,
         check = True
         message = None
     return (check, message)
+
 
 
 class RequestEventContext(BaseModel):
@@ -80,11 +87,73 @@ class RequestEventItem(BaseModel):
 
 
 
+##############################################
+# PART 2: Kafka
+##############################################
+    
+KAFKA_TOPIC = 'event_messages' 
+
+
+#############
+# Mock kafka object
+#############
+class KafkaProducerWrapper:
+    def __init__(self, producer):
+        self.producer = producer
+
+    def produce(self, topic, value):
+        self.producer.produce(topic, value)
+        self.producer.flush()
+
+
+def create_kafka_producer():
+    kafka_producer_config = {"bootstrap.servers": "localhost:9092"} # TODO: I cannot figure out how to get rid of this dependency from config and fake in
+    return KafkaProducerWrapper(Producer(kafka_producer_config))
+
+
+#############
+# In real life
+#############
+# # TODO: What should be the format of the topic name, are there any conventions?
+# # Should we send all event types to one topic, or to different?
+
+# kafka_producer_config = {
+#     "bootstrap.servers": "localhost:9092", # TODO: What configs should be added here?
+# }
+# producer = Producer(kafka_producer_config) # TODO: Should I leave it here, or put inside the send_event funtion?
+
+
+# def delivery_report(err, msg):
+#     if err is not None:
+#         print(f"Message delivery failed: {err}")
+#     else:
+#         print(f"Message delivered to {msg.topic()} [{msg.partition()}] at offset {msg.offset()}")
+
+
+# def send_event_to_kafka(topic: str, 
+#                         event: bytes, # TODO: Which data type should be here, taking into account that we pass serialized event (bytes)
+#                         callback=delivery_report): 
+#     # Produce the event to the Kafka topic
+#     producer.produce(topic, value=event)
+#     # Flush the producer to ensure the message is sent
+#     producer.flush()
+
+
+
+##############################################
+# PART 3: Handler
+##############################################
+
 app = FastAPI()
 
 
-@app.post("/store")
-async def store_event(request: Request, response: Response, event_item: RequestEventItem) -> None:
+@app.post("/store", response_model=None)
+async def store_event(request: Request, 
+                      response: Response, 
+                      event_item: RequestEventItem, 
+                      kafka_producer: KafkaProducerWrapper = Depends(create_kafka_producer) # TODO: Why do we need "Depends"?
+) -> None: 
+    
     # (1) Check content type of the body
     content_type = request.headers.get("content-type", None)
     if content_type != "application/json":
@@ -95,17 +164,21 @@ async def store_event(request: Request, response: Response, event_item: RequestE
     if event_item.event_name in events_mapping:
         # (2) Create Event object
         event_class = events_mapping.get(event_item.event_name)
-        event_context = EventContext(**event_item.context.model_dump())
+        event_context = EventContext(**event_item.context.model_dump()) # Here we get context dict 
         event_instance = event_class(
             context = event_context,
             event_name = event_item.event_name,
             **event_item.data)
     
         # (3) Serialize Event object
+        
         serialized_event = event_instance.SerializeToString()
-        print(serialized_event)
+
 
         # (4) TODO: Send serialized_event to Kafka
+        kafka_producer(topic = KAFKA_TOPIC, 
+                       event = serialized_event)
+        
 
         # (5) Return 204
         response.status_code = status.HTTP_204_NO_CONTENT
