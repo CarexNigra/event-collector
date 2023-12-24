@@ -101,8 +101,8 @@ class KafkaProducerWrapper:
     def __init__(self, producer):
         self.producer = producer
 
-    def produce(self, topic, value):
-        self.producer.produce(topic, value)
+    def produce(self, topic, event):
+        self.producer.produce(topic, event)
         self.producer.flush()
 
 
@@ -171,15 +171,11 @@ async def store_event(request: Request,
             **event_item.data)
     
         # (3) Serialize Event object
-        
         serialized_event = event_instance.SerializeToString()
 
-
         # (4) TODO: Send serialized_event to Kafka
-        kafka_producer(topic = KAFKA_TOPIC, 
-                       event = serialized_event)
+        kafka_producer.produce(topic = KAFKA_TOPIC, event = serialized_event)
         
-
         # (5) Return 204
         response.status_code = status.HTTP_204_NO_CONTENT
 
