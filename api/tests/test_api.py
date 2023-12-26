@@ -1,23 +1,9 @@
 from fastapi.testclient import TestClient
-from unittest.mock import patch, MagicMock
-import pytest
-
-from api.app import app, create_kafka_producer, KafkaProducerWrapper 
-
+from api.app import app
 import uuid
 
 
 client = TestClient(app)
-
-
-@pytest.fixture
-def kafka_producer_mock():
-    # Mock the Kafka producer
-    with patch("api.app.create_kafka_producer") as create_kafka_producer_mock:
-        producer_mock = MagicMock(spec=KafkaProducerWrapper)
-        create_kafka_producer_mock.return_value = producer_mock
-        yield producer_mock
-
 
 def test_post(kafka_producer_mock):
     response = client.post(

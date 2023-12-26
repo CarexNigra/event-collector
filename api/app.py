@@ -93,22 +93,27 @@ class RequestEventItem(BaseModel):
     
 KAFKA_TOPIC = 'event_messages' 
 
+def create_kafka_producer():
+    kafka_producer_config = {"bootstrap.servers": "localhost:9092"} # TODO: I cannot figure out how to get rid of this dependency from config and fake in
+    return Producer(kafka_producer_config)
+
+kafka_producer = create_kafka_producer()
 
 #############
 # Mock kafka object
 #############
-class KafkaProducerWrapper:
-    def __init__(self, producer):
-        self.producer = producer
+# class KafkaProducerWrapper:
+#     def __init__(self, producer):
+#         self.producer = producer
 
-    def produce(self, topic, event):
-        self.producer.produce(topic, event)
-        self.producer.flush()
+#     def produce(self, topic, event):
+#         self.producer.produce(topic, event)
+#         self.producer.flush()
 
 
-def create_kafka_producer():
-    kafka_producer_config = {"bootstrap.servers": "localhost:9092"} # TODO: I cannot figure out how to get rid of this dependency from config and fake in
-    return KafkaProducerWrapper(Producer(kafka_producer_config))
+# def create_kafka_producer():
+#     kafka_producer_config = {"bootstrap.servers": "localhost:9092"} # TODO: I cannot figure out how to get rid of this dependency from config and fake in
+#     return KafkaProducerWrapper(Producer(kafka_producer_config))
 
 
 #############
@@ -150,8 +155,7 @@ app = FastAPI()
 @app.post("/store", response_model=None)
 async def store_event(request: Request, 
                       response: Response, 
-                      event_item: RequestEventItem, 
-                      kafka_producer: KafkaProducerWrapper = Depends(create_kafka_producer) # TODO: Why do we need "Depends"?
+                      event_item: RequestEventItem
 ) -> None: 
     
     # (1) Check content type of the body
@@ -174,7 +178,8 @@ async def store_event(request: Request,
         serialized_event = event_instance.SerializeToString()
 
         # (4) TODO: Send serialized_event to Kafka
-        kafka_producer.produce(topic = KAFKA_TOPIC, event = serialized_event)
+        # kafka_producer.produce(topic = KAFKA_TOPIC, event = serialized_event)
+        kafka_producer.produce(KAFKA_TOPIC, serialized_event)
         
         # (5) Return 204
         response.status_code = status.HTTP_204_NO_CONTENT
