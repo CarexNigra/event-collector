@@ -4,6 +4,7 @@ import uuid
 from pydantic import BaseModel, field_validator
 from gen_protoc.events.test_events_pb2 import EventContext, TestEvent, YetAnotherTestEvent
 from confluent_kafka import Producer
+from functools import lru_cache
 
 
 
@@ -35,9 +36,8 @@ def is_valid_date(datetime_to_check_int: int,
     return (check, message)
 
 
-
 class RequestEventContext(BaseModel):
-    sent_at: int 
+    sent_at: int
     received_at: int
     processed_at: int
     message_id: str
@@ -93,15 +93,66 @@ class RequestEventItem(BaseModel):
     
 KAFKA_TOPIC = 'event_messages' 
 
+@lru_cache
 def create_kafka_producer():
-    kafka_producer_config = {"bootstrap.servers": "localhost:9092"} # TODO: I cannot figure out how to get rid of this dependency from config and fake in
+    kafka_producer_config = {"bootstrap.servers": "localhost:9092"} 
+    # TODO: I cannot figure out how to get rid of this dependency from config and fake in
     return Producer(kafka_producer_config)
 
-kafka_producer = create_kafka_producer()
+
+##############################################
+# PART 3: Handler
+##############################################
+
+app = FastAPI()
+
+
+@app.post("/store", response_model=None)
+async def store_event(request: Request, 
+                      response: Response, 
+                      event_item: RequestEventItem,
+                      kafka_producer = Depends(create_kafka_producer)
+) -> None: 
+    
+    # (1) Check content type of the body
+    content_type = request.headers.get("content-type", None)
+    if content_type != "application/json":
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail=f"Unsupported media type {content_type}"
+        )
+    
+    if event_item.event_name in events_mapping:
+        # (2) Create Event object
+        event_class = events_mapping.get(event_item.event_name)
+        event_context = EventContext(**event_item.context.model_dump()) # Here we get context dict 
+        event_instance = event_class(
+            context = event_context,
+            event_name = event_item.event_name,
+            **event_item.data)
+    
+        # (3) Serialize Event object
+        serialized_event = event_instance.SerializeToString()
+
+        # (4) TODO: Send serialized_event to Kafka
+        kafka_producer.produce(topic = KAFKA_TOPIC, event = serialized_event)
+        
+        # (5) Return 204
+        response.status_code = status.HTTP_204_NO_CONTENT
+
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=f"Unknown event name: {event_item.event_name}"
+        )
+
+
+
+
+
 
 #############
-# Mock kafka object
+# Mock kafka producer
 #############
+
 # class KafkaProducerWrapper:
 #     def __init__(self, producer):
 #         self.producer = producer
@@ -110,10 +161,12 @@ kafka_producer = create_kafka_producer()
 #         self.producer.produce(topic, event)
 #         self.producer.flush()
 
-
 # def create_kafka_producer():
-#     kafka_producer_config = {"bootstrap.servers": "localhost:9092"} # TODO: I cannot figure out how to get rid of this dependency from config and fake in
+#     kafka_producer_config = {"bootstrap.servers": "localhost:9092"} 
+#     # TODO: I cannot figure out how to get rid of this dependency from config and fake in
 #     return KafkaProducerWrapper(Producer(kafka_producer_config))
+
+
 
 
 #############
@@ -145,46 +198,3 @@ kafka_producer = create_kafka_producer()
 
 
 
-##############################################
-# PART 3: Handler
-##############################################
-
-app = FastAPI()
-
-
-@app.post("/store", response_model=None)
-async def store_event(request: Request, 
-                      response: Response, 
-                      event_item: RequestEventItem
-) -> None: 
-    
-    # (1) Check content type of the body
-    content_type = request.headers.get("content-type", None)
-    if content_type != "application/json":
-        raise HTTPException(
-            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail=f"Unsupported media type {content_type}"
-        )
-    
-    if event_item.event_name in events_mapping:
-        # (2) Create Event object
-        event_class = events_mapping.get(event_item.event_name)
-        event_context = EventContext(**event_item.context.model_dump()) # Here we get context dict 
-        event_instance = event_class(
-            context = event_context,
-            event_name = event_item.event_name,
-            **event_item.data)
-    
-        # (3) Serialize Event object
-        serialized_event = event_instance.SerializeToString()
-
-        # (4) TODO: Send serialized_event to Kafka
-        # kafka_producer.produce(topic = KAFKA_TOPIC, event = serialized_event)
-        kafka_producer.produce(KAFKA_TOPIC, serialized_event)
-        
-        # (5) Return 204
-        response.status_code = status.HTTP_204_NO_CONTENT
-
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=f"Unknown event name: {event_item.event_name}"
-        )
