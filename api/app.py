@@ -91,7 +91,7 @@ class RequestEventItem(BaseModel):
 # PART 2: Kafka
 ##############################################
     
-KAFKA_TOPIC = 'event_messages' 
+KAFKA_TOPIC = 'event_messages'
 
 @lru_cache
 def create_kafka_producer():

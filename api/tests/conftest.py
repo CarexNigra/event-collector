@@ -1,31 +1,32 @@
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock
+
 import pytest
+from fastapi.testclient import TestClient
 
-# @pytest.fixture
-# def kafka_producer_mock():
-#     # Mock the Kafka producer
-#     with patch("api.app.create_kafka_producer") as create_kafka_producer_mock:
-#         producer_mock = MagicMock()
-#         producer_mock.produce = MagicMock()
-#         create_kafka_producer_mock.return_value = producer_mock
-#         yield producer_mock
+from api.app import app, create_kafka_producer
 
 
-@pytest.fixture
+
+@pytest.fixture(scope='session')
 def kafka_producer_mock():
-    with patch("api.app.Producer") as kafka_producer_mock:
-        kafka_producer_mock = MagicMock()
-        kafka_producer_mock.produce = MagicMock()
-        yield kafka_producer_mock
+    mock = MagicMock()
+    mock.produce = MagicMock()
+    yield mock
 
 
+@pytest.fixture(scope="function", autouse=True)
+def reset_mock(kafka_producer_mock):
+    # NB: This function is neaded to reset kafka producer
+    # Otherwise within session the fact that kafka_producer_mock was 
+    # called for the first test, would give asser error in subsequent tests
+    # This function is called automatically after each call of the kafka_producer_mock
+    # Which is called once per test function. 
+    yield
+    kafka_producer_mock.reset_mock()
 
-# @fixture(scope="session")
-# def triton_mock():
-#     with patch("api.model.grpc.InferenceServerClient") as m:
-#         triton_client_grpc = MagicMock()
-#         infer_result = MagicMock()
-#         infer_result.as_numpy.return_value = np.array([b"42"])
-#         triton_client_grpc.infer.return_value = infer_result
-#         m.return_value = triton_client_grpc
-#         yield
+
+@pytest.fixture(scope='session')
+def client(kafka_producer_mock):
+    app.dependency_overrides[create_kafka_producer] = lambda: kafka_producer_mock 
+    # NB: lambda is needed to return function. without it it will return object
+    yield TestClient(app)
