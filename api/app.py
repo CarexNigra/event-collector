@@ -1,8 +1,9 @@
 from fastapi import FastAPI, HTTPException, Request, Response, status, Depends
-from gen_protoc.events.test_events_pb2 import EventContext
+from events.context_pb2 import EventContext
+import uuid
 
-from schemas import RequestEventItem, events_mapping
-from kafka import create_kafka_producer, KAFKA_TOPIC
+from api.request import RequestEventItem, events_mapping
+from api.producer import create_kafka_producer, delivery_report, KAFKA_TOPIC
 
 
 app = FastAPI()
@@ -11,7 +12,7 @@ app = FastAPI()
 async def store_event(request: Request, 
                       response: Response, 
                       event_item: RequestEventItem,
-                      kafka_producer = Depends(create_kafka_producer)
+                      kafka_producer = Depends(create_kafka_producer), # TODO: where do we pass path to config?
 ) -> None: 
     
     # (1) Check content type of the body
@@ -27,14 +28,18 @@ async def store_event(request: Request,
         event_context = EventContext(**event_item.context.model_dump()) # Here we get context dict 
         event_instance = event_class(
             context = event_context,
-            event_name = event_item.event_name,
             **event_item.data)
     
         # (3) Serialize Event object
         serialized_event = event_instance.SerializeToString()
 
-        # (4) TODO: Send serialized_event to Kafka
-        kafka_producer.produce(topic = KAFKA_TOPIC, event = serialized_event)
+        # (4) Send serialized_event to Kafka
+        kafka_producer.produce(
+            topic=KAFKA_TOPIC, 
+            event=serialized_event,
+            key=str(uuid.uuid4()),
+            on_delivery=delivery_report,
+        )
         
         # (5) Return 204
         response.status_code = status.HTTP_204_NO_CONTENT

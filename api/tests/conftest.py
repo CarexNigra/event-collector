@@ -3,11 +3,8 @@ from unittest.mock import MagicMock
 import pytest
 from fastapi.testclient import TestClient
 
-from api.app import app, create_kafka_producer
-# TODO: Figure out why it is important to import create_kafka_producer 
-# From api.app, and not from api.kafka
-# The latter one gives ypeError: 'event' is an invalid keyword argument for this function
-
+from api.app import app
+from api.producer import create_kafka_producer
 
 
 @pytest.fixture(scope='session')

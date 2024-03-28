@@ -2,6 +2,15 @@ syntax = "proto3";
 
 package events;
 
+import "events/context.proto";
+
+import "google/protobuf/descriptor.proto";
+
+extend google.protobuf.MessageOptions {
+   string event_name = 50000;
+ }
+
+
 enum UserRole {
     OWNER = 0;
     EDITOR = 1;
@@ -22,29 +31,21 @@ enum InputType {
     SCALE = 3;
 }
 
-message EventContext { // Didn't succeed to move it to separate file (import was not working)
-    optional int64 sent_at = 1;
-    optional int64 received_at = 2;
-    optional int64 processed_at = 3;
-    optional string message_id = 4;
-    optional string user_agent = 5;
-}
-
+// TODO: https://protobuf.dev/programming-guides/proto3/#enum-value-options
+// option (event_name) = "TestEvent";
 message TestEvent {
     optional EventContext context = 1;
-    optional string event_name = 2; 
     // Data fields
-    optional string user_id = 3;
-    optional string account_id = 4;
-    optional UserRole user_role = 5;
+    optional string user_id = 2;
+    optional string account_id = 3;
+    optional UserRole user_role = 4;
 }
 
+// option (event_name) = "YetAnotherTestEvent";
 message YetAnotherTestEvent {
     optional EventContext context = 1;
-    optional string event_name = 2; 
     // Data fields
-    optional InputType input_type = 3;
-    optional string object_id = 4;
-    optional ObjectType object_type = 5;
+    optional InputType input_type = 2;
+    optional string object_id = 3;
+    optional ObjectType object_type = 4;
 }
-

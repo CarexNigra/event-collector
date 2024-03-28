@@ -2,17 +2,9 @@ from fastapi import HTTPException, status
 from datetime import datetime
 import uuid
 from pydantic import BaseModel, field_validator
-from gen_protoc.events.test_events_pb2 import TestEvent, YetAnotherTestEvent
+from events_registry import events_mapping
 
 
-# TODO: Should it be moved to another file?
-events_mapping = {
-    "test_event_name": TestEvent,
-    "test_event_name_2": YetAnotherTestEvent,
-}
-
-
-# TODO: Should it be moved to another file?
 def is_valid_date(datetime_to_check_int: int, 
                   datetime_field_name: str = "sent_at"
                   ):
