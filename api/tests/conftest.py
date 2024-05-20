@@ -3,8 +3,8 @@ from unittest.mock import MagicMock
 import pytest
 from fastapi.testclient import TestClient
 
-from api.app import app
-from api.producer import create_kafka_producer
+from app import app
+from producer import create_kafka_producer
 
 
 @pytest.fixture(scope='session')

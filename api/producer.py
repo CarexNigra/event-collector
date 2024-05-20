@@ -4,7 +4,7 @@ from confluent_kafka import Producer
 from functools import lru_cache
 
 
-KAFKA_TOPIC = 'event_messages'
+KAFKA_TOPIC = 'event-messages'
 CONFIG_FILE_PATH = 'test_config.toml' 
 
 
@@ -14,7 +14,7 @@ def underscore_to_dot(string: str) -> str:
 
 
 class KafkaProducerProperties(BaseModel):
-    bootstrap_servers: list[str] = ["localhost:9092"]
+    bootstrap_servers: str = "localhost:9092"
     retries: int = 2147483647
     max_in_flight_requests_per_connection: int = 1 
     acks: str = 'all'
@@ -30,7 +30,7 @@ class KafkaProducerProperties(BaseModel):
 def parse_kafka_producer_config(file_path):
     with open(file_path, 'rb') as file:
         config = tomllib.load(file)
-    producer_config = config.get("producer", None) # Outputs dict # Why we do not use it directly in create_kafka producer?
+    producer_config = config.get("producer", None) # Outputs dict
     if not producer_config:
         raise Exception(f"No producer config found in the file, located at: {file_path}")
     return KafkaProducerProperties(**producer_config)

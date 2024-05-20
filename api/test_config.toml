@@ -1,5 +1,5 @@
 [producer]
-bootstrap_servers = ["localhost:9092"]
+bootstrap_servers = "localhost:9092"
 retries = 2147483647
 max_in_flight_requests_per_connection = 1 # To enable retries without reordering
 acks = 'all'

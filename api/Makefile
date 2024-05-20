@@ -7,6 +7,7 @@ SHELL := /bin/bash
 	@:
 
 export SERVICE_NAME=eventhub-api
+export PYTHONPATH=.
 
 ifndef PROMETHEUS_MULTIPROC_DIR
 	export PROMETHEUS_MULTIPROC_DIR=${PWD}/.prometheus
@@ -57,9 +58,9 @@ clean-prometheus-dir: ## Clean Prometheus multiprocess directory, if exists.
 tests: clean-prometheus-dir ## Run tests.
 	printf "Tests with Pytest\n"
 ifeq (plain, $(filter plain,$(MAKECMDGOALS)))
-	PYTHONPATH=. pytest tests -s
+	pytest tests -s
 else
-	PYTHONPATH=. poetry run pytest -s
+	poetry run pytest -s
 endif
 
 .PHONY: battery

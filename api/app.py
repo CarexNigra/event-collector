@@ -2,8 +2,9 @@ from fastapi import FastAPI, HTTPException, Request, Response, status, Depends
 from events.context_pb2 import EventContext
 import uuid
 
-from api.request import RequestEventItem, events_mapping
-from api.producer import create_kafka_producer, delivery_report, KAFKA_TOPIC
+from request import RequestEventItem
+from events_registry import events_mapping
+from producer import create_kafka_producer, delivery_report, KAFKA_TOPIC
 
 
 app = FastAPI()
@@ -12,7 +13,7 @@ app = FastAPI()
 async def store_event(request: Request, 
                       response: Response, 
                       event_item: RequestEventItem,
-                      kafka_producer = Depends(create_kafka_producer), # TODO: where do we pass path to config?
+                      kafka_producer = Depends(create_kafka_producer),
 ) -> None: 
     
     # (1) Check content type of the body
@@ -36,7 +37,7 @@ async def store_event(request: Request,
         # (4) Send serialized_event to Kafka
         kafka_producer.produce(
             topic=KAFKA_TOPIC, 
-            event=serialized_event,
+            value=serialized_event,
             key=str(uuid.uuid4()),
             on_delivery=delivery_report,
         )

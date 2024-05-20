@@ -1,5 +1,5 @@
 import uuid
-from api.producer import KAFKA_TOPIC
+from producer import KAFKA_TOPIC
 
 
 

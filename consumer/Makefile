@@ -49,7 +49,6 @@ restyle: ## Reformat code with black and isort.
 	poetry run black .
 	poetry run isort --atomic .
 
-# TODO: MLP-92: Get rid of requirements.txt and build environment with poetry instead.
 .PHONY: requirements
 requirements: ## Generate requirements.txt based on poetry env.
 	poetry export -f requirements.txt --output requirements.txt --without-hashes --with dev
