@@ -11,13 +11,12 @@ To activate certain python `.venv` in vscode (to make code highlighting work) - 
 
 
 
-### How to run kafka producer locally
+### How to set up kafka producer locally
 0. Run docker
 * Create docker-compose.yml (example: https://github.com/confluentinc/cp-all-in-one/blob/7.6.1-post/cp-all-in-one-kraft/docker-compose.yml)
 * in terminal go to the folder with this file and run following command to create a container: docker-compose up -d
 * (to close: docker-compose down)
  
-
 1. Create kafka topic manually
 * In terminal: docker ps 
 * in the output get docker id (first sting)
@@ -46,5 +45,33 @@ curl -v -X POST -H "Content-Type: application/json" 'http://localhost:8000/store
 ```  
 
 4. Check that event ends up in the consumer logs
+* In the terminal with kafka-console-consume (see in 2. above) there will be a message we just sent printed out
+* In the terminal with the app running, there will be following message printed out '127.0.0.1:51296 - "POST /store HTTP/1.1" 204 No Content'
+
+
+
+# How to run the full service locally (when everything is already set up)
+0. Run docker
+* In terminal go to the folder with `docker-compose.yml` file (in our case ../local)
+* Run following command to create a container: `docker-compose up -d`
+
+1. View consumed kafka messages using following setup;
+* Open another terminal session
+* Run `docker ps`
+* In the output get docker container_id (first sting)
+* go docker: `docker exec -it <container_id> bash`
+* [if not known] find kafka-topic file on broker: `ls -ls /bin/ | grep kafka-console-consumer` # In our case its name is `kafka-console-consumer`
+* using kafka-topic file name, run: `kafka-console-consumer --bootstrap-server localhost:9092 --topic event-messages --from-beginning`
+* There will be a message printed here, after we run 2.
+
+2. Launch api server and send test request with an event to it
+* Open another terminal session
+* Go to api folder (where Makefile is located): `make run.api`
+* Open yet another terminal session, send test event to api
+```shell
+curl -v -X POST -H "Content-Type: application/json" 'http://localhost:8000/store' -d '{"event_name": "TestEvent", "context": {"sent_at": 1701530942, "received_at": 1701530942, "processed_at": 1701530942, "message_id": "36eca638-4c0f-4d11-bc9b-cc2290851032", "user_agent": "some_user_agent"}, "data": {"user_id": "example_user_id", "account_id": "example_account_id", "user_role": "OWNER"}}'
+```  
+
+3. Check that event ends up in the consumer logs
 * In the terminal with kafka-console-consume (see in 2. above) there will be a message we just sent printed out
 * In the terminal with the app running, there will be following message printed out '127.0.0.1:51296 - "POST /store HTTP/1.1" 204 No Content'

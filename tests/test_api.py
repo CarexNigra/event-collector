@@ -1,9 +1,13 @@
 import uuid
-from producer import KAFKA_TOPIC
+from api.producer import ConfigParser
+CONFIG_FILE_PATH = 'config/dev.toml' 
 
 
 def assert_producer_mock(topic: str, value: str, key: str, on_delivery: callable):
-    assert topic == KAFKA_TOPIC
+    config_parser = ConfigParser(CONFIG_FILE_PATH)
+    general_config_dict = config_parser.get_general_config()
+    
+    assert topic == general_config_dict['kafka_topic']
     print(value)
     assert len(value) > 0
     assert len(key) > 0
@@ -128,7 +132,3 @@ def test_post_wrong_event_name(client, kafka_producer_mock):
     )
     assert response.status_code == 400
     kafka_producer_mock.produce.assert_not_called()  # Ensure produce method is not called
-
-
-
-

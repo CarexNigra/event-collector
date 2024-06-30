@@ -4,8 +4,11 @@ from events.context_pb2 import EventContext
 from events_registry.key_manager import ProducerKeyManager
 
 from api.request import RequestEventItem
-from events_registry import events_mapping
-from api.producer import create_kafka_producer, delivery_report, KAFKA_TOPIC
+from events_registry.events_registry import events_mapping
+from api.producer import create_kafka_producer, delivery_report
+from config.config import ConfigParser
+
+CONFIG_FILE_PATH = 'config/dev.toml' 
 
 
 app = FastAPI()
@@ -40,9 +43,13 @@ async def store_event(request: Request,
         producer_key = key_manager.generate_key()
         print('Producer key:', producer_key)
 
-        # (4) Send serialized_event to Kafka
+        # (4) Parse general properties config to later get kafka_topic from it
+        config_parser = ConfigParser(CONFIG_FILE_PATH)
+        general_config_dict = config_parser.get_general_config()
+        
+        # (5) Send serialized_event to Kafka
         kafka_producer.produce(
-            topic=KAFKA_TOPIC, 
+            topic=general_config_dict['kafka_topic'], 
             value=serialized_event, 
             key=producer_key,
             on_delivery=delivery_report,

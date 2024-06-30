@@ -2,7 +2,7 @@ from fastapi import HTTPException, status
 from datetime import datetime
 import uuid
 from pydantic import BaseModel, field_validator
-from events_registry import events_mapping
+from events_registry.events_registry import events_mapping
 
 
 def is_valid_date(datetime_to_check_int: int, 

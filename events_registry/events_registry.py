@@ -3,7 +3,7 @@ import importlib
 import inspect
 
 
-FOLDER_PATH = 'events'
+FOLDER_PATH = 'events' # TODO: Should it be here, or move to general config?
 
 
 def get_pb2_files_names(folder_path):
@@ -41,4 +41,4 @@ events_mapping = get_events_mapping(FOLDER_PATH)
 
 
 if __name__=="__main__":
-    print(events_mapping)
+    print("Events mapping:", events_mapping)

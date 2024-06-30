@@ -1,35 +1,19 @@
 from confluent_kafka import Consumer
-from pydantic import BaseModel, ConfigDict
-
-# import tomllib
 
 from events_registry.key_manager import ProducerKeyManager
 from events_registry.events_registry import events_mapping
-from config.config import ConfigParser
+from config.config import ConfigParser, KafkaConsumerProperties
 
 import json
 from google.protobuf.json_format import MessageToJson
 from datetime import datetime
 import os
 
+CONFIG_FILE_PATH = 'config/dev.toml' 
+
 # ==================================== #
 # (1) Create consumer instance
 # ==================================== #
-CONFIG_FILE_PATH = 'config/dev.toml' 
-
-# # TODO: Move to lib
-# def underscore_to_dot(string: str) -> str:
-#     string = string.replace('_', '.')
-#     return string
-
-# # TODO: To figure out which properties should be here
-# class KafkaConsumerProperties(BaseModel):
-#     bootstrap_servers: str = "localhost:9092"
-#     group_id: str = 'foo'
-#     auto_offset_reset: str = 'smallest'
-
-#     model_config = ConfigDict(alias_generator=underscore_to_dot)
-
 
 def create_kafka_consumer() -> Consumer:
     config_parser = ConfigParser(CONFIG_FILE_PATH)
@@ -38,49 +22,12 @@ def create_kafka_consumer() -> Consumer:
     print("Kafka consumer config:", kafka_consumer_config)
     return Consumer(kafka_consumer_config.model_dump(by_alias=True))
 
-# # TODO: Do we need message received report? (by analogy with message delivery for producer)
-
-# if __name__=="__main__":
-#     consumer = create_kafka_consumer()
-#     print("\n", consumer)
+# TODO: Do we need message received report? (by analogy with message delivery for producer)
 
 
 # ==================================== #
 # (2) Consume messages from kafka
 # ==================================== #
-KAFKA_TOPIC = 'event-messages' # TODO: Can it be imported from somewhere since it is used here and in producer as well?
-MIN_COMMIT_COUNT = 10 # TODO: Move to config, how much to put? 
-SAVE_TO_PATH = '../consumer_output'
-
-
-running = True
-
-def basic_consume_loop(consumer, topics, save_to_path):
-    try:
-        consumer.subscribe(topics)
-
-        msg_count = 0
-        while running:
-            msg = consumer.poll(timeout=1.0)
-            if msg is None: continue
-
-            if msg.error():
-                print("Kafka message error") # TODO: Implement logging here
-            else:
-                message_dict = parse_message(msg)
-                save_message_to_json_locally(message_dict, save_to_path)
-                
-                msg_count += 1
-                if msg_count % MIN_COMMIT_COUNT == 0:
-                    consumer.commit(asynchronous=True)
-    finally:
-        # Close down consumer to commit final offsets.
-        consumer.close()
-
-
-def shutdown():
-    running = False
-
 
 def parse_message(message):
 
@@ -109,7 +56,7 @@ def parse_message(message):
 #  3. Write test that checks consumer writes file to disk:
 #       - mock consumer
 #       - add check that event file written on disk
-#
+
 def save_message_to_json_locally(event_json_data, save_to_path):
     received_at_timestamp = datetime.fromtimestamp(int(event_json_data['context']['receivedAt']))
     received_at_formatted = received_at_timestamp.strftime('%Y-%m-%dT%H:%M:%S%z')
@@ -136,9 +83,50 @@ def save_message_to_json_locally(event_json_data, save_to_path):
 
 
 
-consumer = create_kafka_consumer()
-basic_consume_loop(consumer, [KAFKA_TOPIC], SAVE_TO_PATH)
-# shutdown()
+running = True # TODO: Should it be here?
+
+def basic_consume_loop(consumer, topics, min_commit_count, save_to_path):
+    try:
+        consumer.subscribe(topics)
+        msg_count = 0
+        while running:
+            msg = consumer.poll(timeout=1.0)
+            if msg is None: continue
+
+            if msg.error():
+                print("Kafka message error") # TODO: Implement logging here
+            else:
+                message_dict = parse_message(msg)
+                save_message_to_json_locally(message_dict, save_to_path)
+                
+                msg_count += 1
+                if msg_count % min_commit_count == 0:
+                    consumer.commit(asynchronous=True)
+    finally:
+        # Close down consumer to commit final offsets.
+        consumer.close()
+
+
+def shutdown():
+    running = False
+
+# ==================================== #
+# (3) Test that it works
+# ==================================== #
+
+if __name__=="__main__":
+    # (1) Get general properties
+    config_parser = ConfigParser(CONFIG_FILE_PATH)
+    general_config_dict = config_parser.get_general_config()
+    print("\nGeneral config dict:", general_config_dict)
+
+    # (2) Launch consumer
+    consumer = create_kafka_consumer()
+    print("\nConsumer:", consumer)
+    basic_consume_loop(consumer, [general_config_dict['kafka_topic']], general_config_dict['min_commit_count'], general_config_dict['save_to_path'])
+    # shutdown()
+    
+    
 
 
 

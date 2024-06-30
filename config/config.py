@@ -1,4 +1,5 @@
 import tomllib
+from pydantic import BaseModel, ConfigDict
 
 
 # Write function get_config_path which would construct the path to the config file depending on the environment name: dev, stage, etc
@@ -54,6 +55,6 @@ class ConfigParser:
         config_dict = self._get_section("producer")
         return config_dict
     
-    def general_config(self):
+    def get_general_config(self):
         config_dict = self._get_section("general")
         return config_dict
