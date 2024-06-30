@@ -6,7 +6,6 @@ SHELL := /bin/bash
 %:
 	@:
 
-export SERVICE_NAME=eventhub-api
 export PYTHONPATH=.
 
 ifndef PROMETHEUS_MULTIPROC_DIR
@@ -67,12 +66,28 @@ endif
 battery: style-check static-check tests ## Run all checks and tests
 	printf "\nPassed all checks and tests...\n"
 
-.PHONY: run
-run: clean-prometheus-dir ## Run service with dev configuration.
+.PHONY: run.api
+run.api: clean-prometheus-dir ## Run service with dev configuration.
 ifeq (plain, $(filter plain,$(MAKECMDGOALS)))
 	$(SHELL) serve.sh
 else
 	poetry run $(SHELL) serve.sh
+endif
+
+.PHONY: run.consumer
+run.consumer: clean-prometheus-dir ## Run service with dev configuration.
+ifeq (plain, $(filter plain,$(MAKECMDGOALS)))
+	python consumer/consumer.py
+else
+	poetry run python consumer/consumer.py
+endif
+
+.PHONY: run.producer
+run.producer: clean-prometheus-dir ## Run service with dev configuration.
+ifeq (plain, $(filter plain,$(MAKECMDGOALS)))
+	python api/producer.py
+else
+	poetry run python api/producer.py
 endif
 
 .PHONY: create-proto

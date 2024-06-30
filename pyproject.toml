@@ -1,7 +1,7 @@
 [tool.poetry]
-name = "api"
+name = "event-collector"
 version = "0.1.0"
-description = "API for handling events"
+description = "Producer and consumer for handling events"
 authors = ["Lara Simonova <lara@miro.com>"]
 readme = "README.md"
 

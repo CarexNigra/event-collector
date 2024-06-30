@@ -2,11 +2,10 @@ import uuid
 from producer import KAFKA_TOPIC
 
 
-
-def assert_producer_mock(topic: str, event: str, key: str, on_delivery: callable):
+def assert_producer_mock(topic: str, value: str, key: str, on_delivery: callable):
     assert topic == KAFKA_TOPIC
-    print(event)
-    assert len(event) > 0
+    print(value)
+    assert len(value) > 0
     assert len(key) > 0
 
 

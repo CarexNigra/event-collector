@@ -1,4 +1,4 @@
-# eventhub  
+# event-collector  
 
 ### Build and run  
 
@@ -12,11 +12,16 @@ To activate certain python `.venv` in vscode (to make code highlighting work) - 
 
 
 ### How to run kafka producer locally
+0. Run docker
+* Create docker-compose.yml (example: https://github.com/confluentinc/cp-all-in-one/blob/7.6.1-post/cp-all-in-one-kraft/docker-compose.yml)
+* in terminal go to the folder with this file and run following command to create a container: docker-compose up -d
+* (to close: docker-compose down)
+ 
 
 1. Create kafka topic manually
 * In terminal: docker ps 
 * in the output get docker id (first sting)
-* go docker: docker exec -it <docker_id> bash
+* go to docker: docker exec -it <docker_id> bash
 * find kafka-topic file on brocker: ls -ls /bin/ | grep kafka-topics
 * create topic in the file: kafka-topics --bootstrap-server localhost:9092 --create --topic event-messages --partitions 3
 * list all topics: kafka-topics --bootstrap-server localhost:9092 --list

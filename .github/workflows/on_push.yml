@@ -1,4 +1,4 @@
-name: CI eventhub
+name: CI event-collector
 
 on:
   push:

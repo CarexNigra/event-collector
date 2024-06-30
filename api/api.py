@@ -1,10 +1,11 @@
 from fastapi import FastAPI, HTTPException, Request, Response, status, Depends
 from events.context_pb2 import EventContext
-import uuid
+# import uuid
+from events_registry.key_manager import ProducerKeyManager
 
-from request import RequestEventItem
+from api.request import RequestEventItem
 from events_registry import events_mapping
-from producer import create_kafka_producer, delivery_report, KAFKA_TOPIC
+from api.producer import create_kafka_producer, delivery_report, KAFKA_TOPIC
 
 
 app = FastAPI()
@@ -34,11 +35,16 @@ async def store_event(request: Request,
         # (3) Serialize Event object
         serialized_event = event_instance.SerializeToString()
 
+        # (4) Generate key
+        key_manager = ProducerKeyManager(event_type = event_item.event_name) 
+        producer_key = key_manager.generate_key()
+        print('Producer key:', producer_key)
+
         # (4) Send serialized_event to Kafka
         kafka_producer.produce(
             topic=KAFKA_TOPIC, 
-            value=serialized_event,
-            key=str(uuid.uuid4()),
+            value=serialized_event, 
+            key=producer_key,
             on_delivery=delivery_report,
         )
         

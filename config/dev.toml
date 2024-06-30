@@ -1,0 +1,22 @@
+# TODO: add one more section with generic values, like kafka_topic, etc.
+[general]
+KAFKA_TOPIC = 'event-messages' # TODO: Can it be imported from somewhere since it is used here and in producer as well?
+MIN_COMMIT_COUNT = 10 # TODO: Move to config, how much to put? 
+SAVE_TO_PATH = '../consumer_output'
+
+[producer]
+bootstrap_servers = "localhost:9092"
+retries = 2147483647
+max_in_flight_requests_per_connection = 1 # To enable retries without reordering
+acks = 'all'
+batch_size = 16384
+enable_idempotence = true # TODO: Best practices for analytics systems, optimize for performance
+delivery_timeout_ms = 120000
+linger_ms = 5
+request_timeout_ms = 30000
+
+# TODO: Figure out which configs should be here
+[consumer]
+bootstrap_servers = "host1:9092,host2:9092"
+group.id = 'foo'
+auto.offset.reset = 'smallest'
