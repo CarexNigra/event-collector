@@ -36,7 +36,6 @@ def get_events_mapping(folder_path):
     
     return events_mapping
 
-
 events_mapping = get_events_mapping(FOLDER_PATH)
 
 

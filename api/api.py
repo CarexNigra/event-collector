@@ -33,7 +33,8 @@ async def store_event(request: Request,
         event_context = EventContext(**event_item.context.model_dump()) # Here we get context dict 
         event_instance = event_class(
             context = event_context,
-            **event_item.data)
+            **event_item.data,
+        )
     
         # (3) Serialize Event object
         serialized_event = event_instance.SerializeToString()

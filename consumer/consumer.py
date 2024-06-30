@@ -4,10 +4,11 @@ from events_registry.key_manager import ProducerKeyManager
 from events_registry.events_registry import events_mapping
 from config.config import ConfigParser, KafkaConsumerProperties
 
-import json
-from google.protobuf.json_format import MessageToJson
 from datetime import datetime
 import os
+import json
+from google.protobuf.json_format import MessageToJson
+
 
 CONFIG_FILE_PATH = 'config/dev.toml' 
 
@@ -22,7 +23,7 @@ def create_kafka_consumer() -> Consumer:
     print("Kafka consumer config:", kafka_consumer_config)
     return Consumer(kafka_consumer_config.model_dump(by_alias=True))
 
-# TODO: Do we need message received report? (by analogy with message delivery for producer)
+# TODO: Do we need message received report? (by analogy with message delivery for producer). Can be done with Prometheus 
 
 
 # ==================================== #
@@ -49,55 +50,75 @@ def parse_message(message):
 
 # TODO: 
 #  1. Event files:
-#       - make path to be structured as folows: /YEAR/MONTH/DAY/HOUR/timestamp.json
 #       - write file until it exceeds certain size (let's say 4mb, like at miro), then create a new file named as a timestamp of the next event
-#  2. Logic:
-#       - write a class that abstracts file writing (name parsing, folders creation, etc) and use in the consumer
-#  3. Write test that checks consumer writes file to disk:
-#       - mock consumer
-#       - add check that event file written on disk
 
-def save_message_to_json_locally(event_json_data, save_to_path):
-    received_at_timestamp = datetime.fromtimestamp(int(event_json_data['context']['receivedAt']))
-    received_at_formatted = received_at_timestamp.strftime('%Y-%m-%dT%H:%M:%S%z')
-    print(received_at_formatted)
+class LocalFileWriter:
+    def __init__(self, event_json_data, environment, root_path):
+        self._event_json_data = event_json_data
+        self._environment = environment
+        self._root_path = root_path
 
-    folder_name = received_at_formatted[:13].replace('-', '_').replace(':', '')
-    print(folder_name)
+    def parse_received_at_date(self):
+        received_at_timestamp = datetime.fromtimestamp(int(self._event_json_data['context']['receivedAt']))
+        date_dict = {
+            "year": str(received_at_timestamp.year),
+            "day": str(received_at_timestamp.day),
+            "month": str(received_at_timestamp.month),
+            "hour": str(received_at_timestamp.hour),
+            "int_timestamp": str(self._event_json_data['context']['receivedAt'])
+        }
+        return date_dict
+    
+    def get_full_path(self):
+        if self._environment == 'dev':
+            date_dict = self.parse_received_at_date()
+            # Check if the subfolder exists in the consumer_output folder
+            folder_path = os.path.join(self._root_path, 
+                                       date_dict['year'], 
+                                       date_dict['month'], 
+                                       date_dict['day'], 
+                                       date_dict['hour'])
 
-    # Check if the subfolder exists in the consumer_output folder
-    folder_path = os.path.join(save_to_path, folder_name)
+            # Create the folder if it doesn't exist
+            if not os.path.exists(folder_path):
+                os.makedirs(folder_path)
 
-    # Create the folder if it doesn't exist
-    if not os.path.exists(folder_path):
-        os.makedirs(folder_path)
+            # Save the dict as a JSON file with the name consisting of receivedAt timestamp + underscore + messageId
+            file_name = f"{date_dict['int_timestamp']}.json"
+            file_path = os.path.join(folder_path, file_name)
+            return file_path
+        else:
+            print(f"No path defined for {self._environment} environment")
+    
+    def write_file(self):
+        if self._environment == 'dev':
+            file_path = self.get_full_path()
+            with open(file_path, 'w') as json_file:
+                json.dump(self._event_json_data, json_file)
+            print(f"JSON file saved for {self._environment} saved to: {file_path}")
+        else:
+            print(f"No saving function defined for {self._environment} environment")
 
-    # Save the dict as a JSON file with the name consisting of receivedAt timestamp + underscore + messageId
-    file_name = f"{received_at_formatted.replace(':', '_')}_{event_json_data['context']['messageId']}.json"
-    file_path = os.path.join(folder_path, file_name)
-
-    with open(file_path, 'w') as json_file:
-        json.dump(event_json_data, json_file)
-
-    print(f"JSON file saved: {file_path}")
-
-
-
-running = True # TODO: Should it be here?
 
 def basic_consume_loop(consumer, topics, min_commit_count, save_to_path):
     try:
         consumer.subscribe(topics)
         msg_count = 0
-        while running:
+        while True:
             msg = consumer.poll(timeout=1.0)
-            if msg is None: continue
+            if msg is None: 
+                continue
 
             if msg.error():
                 print("Kafka message error") # TODO: Implement logging here
             else:
                 message_dict = parse_message(msg)
-                save_message_to_json_locally(message_dict, save_to_path)
+                file_writer = LocalFileWriter(
+                    event_json_data = message_dict, 
+                    environment = 'dev', 
+                    root_path = save_to_path
+                )
+                file_writer.write_file()
                 
                 msg_count += 1
                 if msg_count % min_commit_count == 0:
@@ -107,8 +128,7 @@ def basic_consume_loop(consumer, topics, min_commit_count, save_to_path):
         consumer.close()
 
 
-def shutdown():
-    running = False
+
 
 # ==================================== #
 # (3) Test that it works
@@ -118,17 +138,20 @@ if __name__=="__main__":
     # (1) Get general properties
     config_parser = ConfigParser(CONFIG_FILE_PATH)
     general_config_dict = config_parser.get_general_config()
-    print("\nGeneral config dict:", general_config_dict)
+    # print("\nGeneral config dict:", general_config_dict)
+    
 
     # (2) Launch consumer
     consumer = create_kafka_consumer()
-    print("\nConsumer:", consumer)
-    basic_consume_loop(consumer, [general_config_dict['kafka_topic']], general_config_dict['min_commit_count'], general_config_dict['save_to_path'])
-    # shutdown()
+    # print("\nConsumer:", consumer)    
+    basic_consume_loop(
+        consumer, 
+        [general_config_dict['kafka_topic']], 
+        general_config_dict['min_commit_count'], 
+        general_config_dict['save_to_path'],
+    )
+
     
+
     
-
-
-
-
     

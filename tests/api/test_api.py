@@ -1,5 +1,6 @@
 import uuid
-from api.producer import ConfigParser
+from config.config import ConfigParser
+
 CONFIG_FILE_PATH = 'config/dev.toml' 
 
 
@@ -14,7 +15,6 @@ def assert_producer_mock(topic: str, value: str, key: str, on_delivery: callable
 
 
 def test_post(kafka_producer_mock, client):
-    
     response = client.post(
         "/store", 
         headers={"Content-type": "application/json"},

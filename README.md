@@ -75,3 +75,7 @@ curl -v -X POST -H "Content-Type: application/json" 'http://localhost:8000/store
 3. Check that event ends up in the consumer logs
 * In the terminal with kafka-console-consume (see in 2. above) there will be a message we just sent printed out
 * In the terminal with the app running, there will be following message printed out '127.0.0.1:51296 - "POST /store HTTP/1.1" 204 No Content'
+
+
+# NOTES
+1. Sometimes we need to re-create .venv. For this you should only run `make install`

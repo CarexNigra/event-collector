@@ -1,7 +1,7 @@
 [general]
 kafka_topic = 'event-messages' # TODO: Can it be imported from somewhere since it is used here and in producer as well?
 min_commit_count = 10 # TODO: Move to config, how much to put? 
-save_to_path = '../consumer_output'
+save_to_path = './consumer_output'
 
 [producer]
 bootstrap_servers = "localhost:9092"
