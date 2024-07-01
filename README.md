@@ -78,4 +78,5 @@ curl -v -X POST -H "Content-Type: application/json" 'http://localhost:8000/store
 
 
 # NOTES
-1. Sometimes we need to re-create .venv. For this you should only run `make install`
+1. Sometimes we need to re-create .venv. For example, if you restructure project and move files and folders around. For this you should only run `make install`
+2. See the content of temp file `ls -la /tmp/`

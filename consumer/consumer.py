@@ -48,9 +48,7 @@ def parse_message(message):
         print(f"Event class data type: {type(event_json_data)}, data: \n{event_json_data}")
         return event_json_data
 
-# TODO: 
-#  1. Event files:
-#       - write file until it exceeds certain size (let's say 4mb, like at miro), then create a new file named as a timestamp of the next event
+# TODO: write file until it exceeds certain size (let's say 4mb, like at miro), then create a new file named as a timestamp of the next event
 
 class LocalFileWriter:
     def __init__(self, event_json_data, environment, root_path):
@@ -151,7 +149,3 @@ if __name__=="__main__":
         general_config_dict['save_to_path'],
     )
 
-    
-
-    
-    
