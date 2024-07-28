@@ -25,7 +25,7 @@ jobs:
           python-version: 3.11
           cache: poetry
       - name: Api setup and run tests
-        working-directory: ./api
+        working-directory: .
         run: |
           poetry install
           make battery
