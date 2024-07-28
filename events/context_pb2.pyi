@@ -1,6 +1,8 @@
+from typing import ClassVar as _ClassVar
+from typing import Optional as _Optional
+
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
-from typing import ClassVar as _ClassVar, Optional as _Optional
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
@@ -16,4 +18,11 @@ class EventContext(_message.Message):
     processed_at: int
     message_id: str
     user_agent: str
-    def __init__(self, sent_at: _Optional[int] = ..., received_at: _Optional[int] = ..., processed_at: _Optional[int] = ..., message_id: _Optional[str] = ..., user_agent: _Optional[str] = ...) -> None: ...
+    def __init__(
+        self,
+        sent_at: _Optional[int] = ...,
+        received_at: _Optional[int] = ...,
+        processed_at: _Optional[int] = ...,
+        message_id: _Optional[str] = ...,
+        user_agent: _Optional[str] = ...,
+    ) -> None: ...

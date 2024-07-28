@@ -48,7 +48,10 @@ curl -v -X POST -H "Content-Type: application/json" 'http://localhost:8000/store
 * In the terminal with kafka-console-consume (see in 2. above) there will be a message we just sent printed out
 * In the terminal with the app running, there will be following message printed out '127.0.0.1:51296 - "POST /store HTTP/1.1" 204 No Content'
 
-
+# How to set up path to config file
+* Define environment name in terminal as follows: os.environ["ENVIRONMENT"] = <env_var_string>
+* <env_var_string> can be either "dev", or "stage", or "prod"
+* this value will be passed to `environmnet_type` variable of `get_config_path` function and used to construct path to config file
 
 # How to run the full service locally (when everything is already set up)
 0. Run docker
@@ -66,7 +69,7 @@ curl -v -X POST -H "Content-Type: application/json" 'http://localhost:8000/store
 
 2. Launch api server and send test request with an event to it
 * Open another terminal session
-* Go to api folder (where Makefile is located): `make run.api`
+* Go to the folder where Makefile is located (root): `make run.api`
 * Open yet another terminal session, send test event to api
 ```shell
 curl -v -X POST -H "Content-Type: application/json" 'http://localhost:8000/store' -d '{"event_name": "TestEvent", "context": {"sent_at": 1701530942, "received_at": 1701530942, "processed_at": 1701530942, "message_id": "36eca638-4c0f-4d11-bc9b-cc2290851032", "user_agent": "some_user_agent"}, "data": {"user_id": "example_user_id", "account_id": "example_account_id", "user_role": "OWNER"}}'
@@ -74,7 +77,7 @@ curl -v -X POST -H "Content-Type: application/json" 'http://localhost:8000/store
 
 3. Check that event ends up in the consumer logs
 * In the terminal with kafka-console-consume (see in 2. above) there will be a message we just sent printed out
-* In the terminal with the app running, there will be following message printed out '127.0.0.1:51296 - "POST /store HTTP/1.1" 204 No Content'
+* In the terminal with the app running, there will be following message printed out `127.0.0.1:51296 - "POST /store HTTP/1.1" 204 No Content`
 
 
 # NOTES

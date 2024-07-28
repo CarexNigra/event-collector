@@ -1,12 +1,15 @@
-from confluent_kafka import Producer
 from functools import lru_cache
-from config.config import ConfigParser, KafkaProducerProperties
 
-CONFIG_FILE_PATH = 'config/dev.toml' 
+from confluent_kafka import Producer
+
+from config.config import ConfigParser, KafkaProducerProperties, get_config_path
+
+CONFIG_FILE_PATH = get_config_path()
 
 # ==================================== #
 # (1) Create producer instance
 # ==================================== #
+
 
 @lru_cache
 def create_kafka_producer() -> Producer:
@@ -28,6 +31,6 @@ def delivery_report(err, msg):
 # (2) Test that it works
 # ==================================== #
 
-if __name__=="__main__":
+if __name__ == "__main__":
     producer = create_kafka_producer()
     print("\nProducer:", producer)
