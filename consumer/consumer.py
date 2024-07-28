@@ -50,15 +50,8 @@ def parse_message(message):
         return event_json_data
 
 
-# TODO: write file until it exceeds certain size (let's say 4mb, like at miro), then create a new file named as a timestamp of the next event
-"""
-Remember to implement it in the way, that consumer doesn't know anything about this logic. He just send message to writer.
-And that's it. In that way, you can replace your writer with anything - like s3 writer or smth else.  
-1. Implement messages "buffer" on consumer-side: store N messages in-memory, and after certain number of messages appear or 
-by the timer (let's say 5 sec.)
-2. Get files in the folder: use OS commands like "list" -> Sort filenames in ascending order -> use the last filename to write
-messages to from buffer (clean it after successful write).
-"""
+# TODO: Implement messages "buffer" on consumer-side: store N messages in-memory,
+# and after certain number of messages appear or by the timer (let's say 5 sec.)
 
 
 class LocalFileWriter:

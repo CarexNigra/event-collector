@@ -39,7 +39,7 @@ class RequestEventContext(BaseModel):
     @field_validator("message_id")
     def message_id_check(cls, v):
         try:
-            uuid_obj = uuid.UUID(v)
+            uuid_obj = uuid.UUID(v)  # noqa: F841
             return v
         except ValueError:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"message_id {v} is not in UUID format")
@@ -47,7 +47,7 @@ class RequestEventContext(BaseModel):
     @field_validator("user_agent")
     def user_agent_check(cls, v):
         if not v:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"user_agent field should not be empty")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="user_agent field should not be empty")
         return v
 
 

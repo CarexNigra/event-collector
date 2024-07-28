@@ -48,4 +48,4 @@ def test_consumption(event_mock, kafka_consumer_mock, clean_up_temp):
 
     full_file_path = file_writer.get_full_path()
     print("full_file_path:", full_file_path)
-    assert os.path.exists(full_file_path) == True
+    assert os.path.exists(full_file_path)

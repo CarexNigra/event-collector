@@ -2,7 +2,7 @@ import json
 import os
 import time
 import uuid
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from google.protobuf.json_format import MessageToJson

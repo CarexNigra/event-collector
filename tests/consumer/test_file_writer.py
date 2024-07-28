@@ -46,7 +46,7 @@ def test_file_writing(event_mock, clean_up_temp):
 
         json_files = glob.glob(os.path.join(folder_path, "*.json"))
         most_recent_file_path = max(json_files, key=lambda f: int(os.path.splitext(os.path.basename(f))[0]))
-        assert os.path.exists(most_recent_file_path) == True
+        assert os.path.exists(most_recent_file_path)
 
     number_of_files_calculated = math.ceil(total_message_size / test_configs["max_output_file_size"])
     number_of_files_actual = len(json_files)
