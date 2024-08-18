@@ -24,13 +24,8 @@ jobs:
         with:
           python-version: 3.11
           cache: poetry
-      - name: Api setup and run tests
+      - name: Setup and run tests
         working-directory: .
         run: |
           poetry install
           make battery
-      - name: Consumer setup and run tests
-        working-directory: ./consumer
-        run: |
-          poetry install
-          # make battery # TODO: uncomment when makefile will be ready

@@ -16,7 +16,7 @@ def kafka_producer_mock():
 
 @pytest.fixture(scope="function", autouse=True)
 def reset_mock(kafka_producer_mock):
-    # NB: This function is neaded to reset kafka producer
+    # NB: This function is needed to reset kafka producer
     # Otherwise within session the fact that kafka_producer_mock was
     # called for the first test, would give asser error in subsequent tests
     # This function is called automatically after each call of the kafka_producer_mock
