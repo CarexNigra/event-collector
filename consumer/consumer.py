@@ -146,7 +146,7 @@ class LocalFileWriter(FileWriter):
         return os.path.getsize(file_path)
 
     def get_full_path(self) -> str:
-        date_dict = self.parse_received_at_date(self._event_json_data)
+        date_dict = self.parse_received_at_date()
 
         # (1) Check if the subfolder exists in the consumer_output folder
         folder_path = os.path.join(
@@ -281,6 +281,7 @@ class EventConsumer:
             msg_count = 0
             while True:
                 msg = self._consumer.poll(timeout=1.0)
+                print("\n msg", msg)
                 if msg is None:
                     continue
 
@@ -288,9 +289,9 @@ class EventConsumer:
                     print("Kafka message error")  # TODO: Implement logging here
                 else:
                     message_dict = parse_message(msg)
-                    print("\n>>>>message_dict: ", message_dict)
                     self._file_writer._event_json_data = message_dict
-                    self._file_writer.write_file()
+                    self._file_writer.write_file(self._file_writer._event_json_data) # TODO: Why should we pass arg here? It should be added automatically
+                    # self._file_writer.write_file()
                 
                     msg_count += 1
                     if msg_count % self._min_commit_count == 0:
@@ -313,21 +314,21 @@ if __name__ == "__main__":
     general_config_dict = config_parser.get_general_config()
 
     # (2 Option 1) Instantiate Locacl file writer
-    # file_writer = LocalFileWriter(
-    #     event_json_data={},
-    #     root_path=general_config_dict["root_path"],
-    #     max_output_file_size=general_config_dict["max_output_file_size"]
-    # )
-
-    # (2 Option 2) Instantiate Minio file writer
-    minio_client = create_minio_client()
-    create_bucket(general_config_dict["root_path"], minio_client)
-    file_writer = MinioFileWriter(
+    file_writer = LocalFileWriter(
         event_json_data={},
         root_path=general_config_dict["root_path"],
-        minio_client=minio_client,
         max_output_file_size=general_config_dict["max_output_file_size"]
     )
+
+    # (2 Option 2) Instantiate Minio file writer
+    # minio_client = create_minio_client()
+    # create_bucket(general_config_dict["root_path"], minio_client)
+    # file_writer = MinioFileWriter(
+    #     event_json_data={},
+    #     root_path=general_config_dict["root_path"],
+    #     minio_client=minio_client,
+    #     max_output_file_size=general_config_dict["max_output_file_size"]
+    # )
 
     # (3) Instantiate consumer
     consumer = create_kafka_consumer()
