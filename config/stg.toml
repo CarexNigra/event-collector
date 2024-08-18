@@ -1,7 +1,7 @@
 [general]
 kafka_topic = 'event-messages' # TODO: Can it be imported from somewhere since it is used here and in producer as well?
 min_commit_count = 10 # TODO: Move to config, how much to put? 
-root_path = './consumer_output'
+root_path = 'consumed-events'
 max_output_file_size = 4194304 # 4Mb in bytes
 
 [producer]
