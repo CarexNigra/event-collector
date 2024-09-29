@@ -1,17 +1,14 @@
 import uuid
 from typing import Callable
 
-from config.config import ConfigParser, get_config_path
+from config.config import get_config
 
-CONFIG_FILE_PATH = get_config_path()
 
 
 def assert_producer_mock(topic: str, value: str, key: str, on_delivery: Callable):
-    config_parser = ConfigParser(CONFIG_FILE_PATH)
-    general_config_dict = config_parser.get_general_config()
+    general_config_dict = get_config()['general']
 
     assert topic == general_config_dict["kafka_topic"]
-    print(value)
     assert len(value) > 0
     assert len(key) > 0
 

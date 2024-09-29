@@ -61,8 +61,8 @@ curl -v -X POST -H "Content-Type: application/json" 'http://localhost:8000/store
 1. View consumed kafka messages using following setup;
 * Open another terminal session
 * Run `docker ps`
-* In the output get docker container_id (first sting)
-* go docker: `docker exec -it <container_id> bash`
+* In the output get `broker` docker container_id (first sting)
+* go to the docker container: `docker exec -it <container_id> bash`
 * [if not known] find kafka-topic file on broker: `ls -ls /bin/ | grep kafka-console-consumer` # In our case its name is `kafka-console-consumer`
 * using kafka-topic file name, run: `kafka-console-consumer --bootstrap-server localhost:9092 --topic event-messages --from-beginning`
 * There will be a message printed here, after we run 2.
@@ -76,7 +76,7 @@ curl -v -X POST -H "Content-Type: application/json" 'http://localhost:8000/store
 ```  
 
 3. Check that event ends up in the consumer logs
-* In the terminal with kafka-console-consume (see in 2. above) there will be a message we just sent printed out
+* In the terminal with kafka-console-consumer (see in 2. above) there will be a message we just sent printed out
 * In the terminal with the app running, there will be following message printed out `127.0.0.1:51296 - "POST /store HTTP/1.1" 204 No Content`
 
 

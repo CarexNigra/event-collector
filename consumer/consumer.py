@@ -13,21 +13,23 @@ from minio.error import S3Error
 from confluent_kafka import Consumer
 from google.protobuf.json_format import MessageToJson
 
-from config.config import ConfigParser, KafkaConsumerProperties, get_config_path
+from config.config import KafkaConsumerProperties, get_config
 from events_registry.events_registry import events_mapping
 from events_registry.key_manager import ProducerKeyManager
 
-CONFIG_FILE_PATH = get_config_path()
+from common.logger import get_logger
+
+logger = get_logger()
 
 # ==================================== #
 # (1) Create consumer instance
 # ==================================== #
 
 def create_kafka_consumer() -> Consumer:
-    config_parser = ConfigParser(CONFIG_FILE_PATH)
-    kafka_consumer_config_dict = config_parser.get_consumer_config()
+    kafka_consumer_config_dict = get_config()['consumer']
     kafka_consumer_config = KafkaConsumerProperties(**kafka_consumer_config_dict)
-    print("Kafka consumer config:", kafka_consumer_config)
+
+    logger.info(f"Kafka consumer config: {kafka_consumer_config}")
     return Consumer(kafka_consumer_config.model_dump(by_alias=True))
 
 
@@ -39,10 +41,10 @@ def create_kafka_consumer() -> Consumer:
 
 def parse_message(message):
     event_type = ProducerKeyManager(producer_key=message.key().decode("utf-8")).get_event_type_from_key()
-    # print("\nEvent type: ", event_type)
+    # logger.debug(f"\nEvent type: {event_type}")
 
     binary_value = message.value()
-    # print("\nValue:", binary_value)
+    # logger.debug(f"\nValue: {binary_value}")
 
     if event_type in events_mapping:
         event_class = events_mapping.get(event_type)
@@ -50,7 +52,7 @@ def parse_message(message):
         event.ParseFromString(binary_value)
         event_json_string = MessageToJson(event)
         event_json_data = json.loads(event_json_string)
-        print(f"Event class data type: {type(event_json_data)}, data: \n{event_json_data}")
+        logger.info(f"Event class data type: {type(event_json_data)}, data: \n{event_json_data}")
         return event_json_data
 
 
@@ -60,30 +62,25 @@ def parse_message(message):
 
 def create_minio_client() -> Minio: 
     # TODO: Move credentials from here to stg config
-    minio_client = Minio(
-                "localhost:9000", 
-                # following keys are from the environment variables in docker-compose.yaml 
-                access_key="minio_user",  
-                secret_key="minio_password",  
-                secure=False  # Set to True if using HTTPS
-            )
+    minio_config_dict = get_config()['minio']
+    minio_client = Minio(**minio_config_dict)
     return minio_client
 
 def create_bucket(bucket_name: str, minio_client: Minio) -> None:
     try:
         if not minio_client.bucket_exists(bucket_name):
             minio_client.make_bucket(bucket_name)
-            print(f"Bucket '{bucket_name}' created successfully.")
+            logger.info(f"Bucket '{bucket_name}' created successfully")
         else:
-            print(f"Bucket '{bucket_name}' already exists.")
+            logger.info(f"Bucket '{bucket_name}' already exists")
     except S3Error as exc:
-        print("Error occurred: ", exc)
+        logger.info(f"Error occurred: {exc}")
 
 # ==================================== #
 # (3) Set up FileWriters
 # ==================================== #
 
-class FileWriter(abc.ABC):
+class FileWriterBase(abc.ABC):
     # NOTE: This is an abstract class to make file writing env agnostic
 
     def __init__(self, event_json_data, max_output_file_size):
@@ -137,7 +134,7 @@ class FileWriter(abc.ABC):
         pass
 
 
-class LocalFileWriter(FileWriter):
+class LocalFileWriter(FileWriterBase):
     def __init__(self, event_json_data, root_path, max_output_file_size):
         super().__init__(event_json_data, max_output_file_size)
         self._root_path = root_path
@@ -166,7 +163,7 @@ class LocalFileWriter(FileWriter):
         return file_path
 
 
-    def write_file(self, event_json_data):
+    def write_file(self):
         file_path = self.get_full_path()
         if file_path is None:
             return
@@ -183,7 +180,7 @@ class LocalFileWriter(FileWriter):
 
         # Ensure existing data is a list (assuming the JSON data structure is a list of events)
         if not isinstance(existing_data, list):
-            print("The existing data is not a list. Cannot append new data.")
+            logger.info("The existing data is not a list. Cannot append new data")
             return
 
         # Append the new event data to existing data
@@ -192,12 +189,12 @@ class LocalFileWriter(FileWriter):
         # Write back the updated data
         with open(file_path, "w") as json_file:
             json.dump(existing_data, json_file)
-        print(f"JSON file saved to: {file_path}")
+        logger.info(f"JSON file saved to: {file_path}")
         
 
 
 
-class MinioFileWriter(FileWriter):
+class MinioFileWriter(FileWriterBase):
     def __init__(self, event_json_data, root_path, max_output_file_size, minio_client):
         super().__init__(event_json_data, max_output_file_size)
         self._root_path = root_path # = bucket_name TODO: should we rename it for comprehensibility?
@@ -242,7 +239,7 @@ class MinioFileWriter(FileWriter):
     
         # Ensure existing data is a list (assuming the JSON data structure is a list of events)
         if not isinstance(existing_data, list):
-            print("The existing data is not a list. Cannot append new data.")
+            logger.info("The existing data is not a list. Cannot append new data.")
             return
         
         # Append the new event data to existing data
@@ -259,8 +256,7 @@ class MinioFileWriter(FileWriter):
             length=len(json_data),
             content_type="application/json"
         )
-
-        print(f"JSON file saved to MinIO at: {file_path}")
+        logger.info(f"JSON file saved to MinIO at: {file_path}")
 
 
 # ==================================== #
@@ -268,35 +264,41 @@ class MinioFileWriter(FileWriter):
 # ==================================== #
 
 class EventConsumer:
-    def __init__(self, file_writer: FileWriter, consumer: Consumer, topics: List[str], min_commit_count: int):
+    def __init__(self, file_writer: FileWriterBase, consumer: Consumer, topics: List[str], min_commit_count: int):
         self._file_writer = file_writer
         self._consumer = consumer
         self._topics = topics
         self._min_commit_count = min_commit_count
-        
+        self._running = True  # Added this flag to control the loop
 
+    def stop(self):
+        self._running = False  # Added a method to stop the loop
+        
     def run_consume_loop(self):
         try:
             self._consumer.subscribe(self._topics)
             msg_count = 0
-            while True:
+            while self._running: # Added to stop the loop
+            # while True:
                 msg = self._consumer.poll(timeout=1.0)
-                print("\n msg", msg)
+                logger.info(f"\n Message: {msg}")
                 if msg is None:
                     continue
 
                 if msg.error():
-                    print("Kafka message error")  # TODO: Implement logging here
+                    logger.info("Kafka message error")
                 else:
                     message_dict = parse_message(msg)
+                    logger.debug("message_dict: ", message_dict)
                     self._file_writer._event_json_data = message_dict
-                    self._file_writer.write_file(self._file_writer._event_json_data) # TODO: Why should we pass arg here? It should be added automatically
-                    # self._file_writer.write_file()
+                    logger.debug("self._file_writer._event_json_data: ", self._file_writer._event_json_data)
+                    self._file_writer.write_file()
                 
                     msg_count += 1
                     if msg_count % self._min_commit_count == 0:
                         self._consumer.commit(asynchronous=True)
-        
+            
+
         finally:
             # Close down consumer to commit final offsets.
             self._consumer.close()
@@ -307,28 +309,29 @@ class EventConsumer:
 # (5) Test that it works
 # ==================================== #
 
+# ENVIRONMENT=dev PYTHONPATH=. poetry run python ./consumer/consumer.py
+# ENVIRONMENT=stg PYTHONPATH=. poetry run python ./consumer/consumer.py
 
 if __name__ == "__main__":
     # (1) Get general properties
-    config_parser = ConfigParser(CONFIG_FILE_PATH)
-    general_config_dict = config_parser.get_general_config()
+    general_config_dict = get_config()['general']
 
     # (2 Option 1) Instantiate Locacl file writer
-    file_writer = LocalFileWriter(
-        event_json_data={},
-        root_path=general_config_dict["root_path"],
-        max_output_file_size=general_config_dict["max_output_file_size"]
-    )
-
-    # (2 Option 2) Instantiate Minio file writer
-    # minio_client = create_minio_client()
-    # create_bucket(general_config_dict["root_path"], minio_client)
-    # file_writer = MinioFileWriter(
+    # file_writer = LocalFileWriter(
     #     event_json_data={},
     #     root_path=general_config_dict["root_path"],
-    #     minio_client=minio_client,
     #     max_output_file_size=general_config_dict["max_output_file_size"]
     # )
+
+    # # (2 Option 2) Instantiate Minio file writer
+    minio_client = create_minio_client()
+    create_bucket(general_config_dict["root_path"], minio_client)
+    file_writer = MinioFileWriter(
+        event_json_data={},
+        root_path=general_config_dict["root_path"],
+        minio_client=minio_client,
+        max_output_file_size=general_config_dict["max_output_file_size"]
+    )
 
     # (3) Instantiate consumer
     consumer = create_kafka_consumer()

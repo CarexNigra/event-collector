@@ -2,7 +2,12 @@ import importlib
 import inspect
 import os
 
-FOLDER_PATH = "events"  # TODO: Should it be here, or move to general config?
+from common.logger import get_logger
+
+logger = get_logger()
+
+FOLDER_PATH = "events"  
+# NOTE: can keep it here for now, since events folder doesn't change, and sticks to this repo structure
 
 
 def get_pb2_files_names(folder_path):
@@ -26,12 +31,10 @@ def get_events_mapping(folder_path):
 
             for k in d:
                 events_mapping[d[k].__name__] = d[k]
-                print(d[k].DESCRIPTOR.GetOptions())
-                # events_mapping[d[k].event_name.name] = d[k]
+                logger.info(d[k].DESCRIPTOR.GetOptions())
 
         except ImportError as e:
-            # TODO: replace with python logging
-            print(f"Error importing module {module_name}: {e}")
+            logger.info(f"Error importing module {module_name}: {e}")
 
     return events_mapping
 
@@ -39,5 +42,5 @@ def get_events_mapping(folder_path):
 events_mapping = get_events_mapping(FOLDER_PATH)
 
 
-if __name__ == "__main__":
-    print("Events mapping:", events_mapping)
+# if __name__ == "__main__":
+#     print("Events mapping:", events_mapping)

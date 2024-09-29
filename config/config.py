@@ -1,5 +1,6 @@
 import os
 import tomllib
+from functools import lru_cache
 
 from pydantic import BaseModel, ConfigDict
 
@@ -53,15 +54,18 @@ class ConfigParser:
         if not section:
             raise Exception(f"No `{name}` config found in the file, located at: {self._path_to_config_toml}")
         return section
+    
+    def get_all_configs_dict(self):
+        all_configs_dict = {}
+        for section_name in self._config.keys():
+            all_configs_dict[section_name] = self._get_section(section_name)
+        return all_configs_dict
 
-    def get_consumer_config(self):
-        config_dict = self._get_section("consumer")
-        return config_dict
+    
 
-    def get_producer_config(self):
-        config_dict = self._get_section("producer")
-        return config_dict
-
-    def get_general_config(self):
-        config_dict = self._get_section("general")
-        return config_dict
+@lru_cache
+def get_config():
+    CONFIG_FILE_PATH = get_config_path()
+    config_parser = ConfigParser(CONFIG_FILE_PATH)
+    all_configs_dict = config_parser.get_all_configs_dict()
+    return all_configs_dict

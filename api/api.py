@@ -2,13 +2,16 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 
 from api.producer import create_kafka_producer, delivery_report
 from api.request import RequestEventItem
-from config.config import ConfigParser, get_config_path
+from config.config import get_config
 from events.context_pb2 import EventContext
 from events_registry.events_registry import events_mapping
 from events_registry.key_manager import ProducerKeyManager
 
+from common.logger import get_logger
+
+logger = get_logger()
+
 app = FastAPI()
-CONFIG_FILE_PATH = get_config_path()
 
 
 @app.post("/store", response_model=None)
@@ -17,6 +20,7 @@ async def store_event(
     response: Response,
     event_item: RequestEventItem,
     kafka_producer=Depends(create_kafka_producer),
+    config=Depends(get_config),
 ) -> None:
     # (1) Check content type of the body
     content_type = request.headers.get("content-type", None)
@@ -40,11 +44,10 @@ async def store_event(
         # (4) Generate key
         key_manager = ProducerKeyManager(event_type=event_item.event_name)
         producer_key = key_manager.generate_key()
-        print("Producer key:", producer_key)
+        logger.info(f"Producer key: {producer_key}")
 
         # (4) Parse general properties config to later get kafka_topic from it
-        config_parser = ConfigParser(CONFIG_FILE_PATH)
-        general_config_dict = config_parser.get_general_config()
+        general_config_dict = config['general']
 
         # (5) Send serialized_event to Kafka
         kafka_producer.produce(

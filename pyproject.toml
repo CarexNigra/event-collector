@@ -24,6 +24,8 @@ mypy = "^1.7.0"
 pre-commit = "^3.5.0"
 pytest = "^7.4.3"
 flake8-pyproject = "^1.2.3"
+pytest-minio-mock = "^0.4.16"
+pytest-mock = "^3.14.0"
 
 [build-system]
 requires = ["poetry-core"]
