@@ -88,6 +88,9 @@ def kafka_consumer_mock(event_mock):
     mock.subscribe = MagicMock()
     mock.commit = MagicMock()
     mock.poll = poll
+
+    mock.memberid.return_value = str(uuid.uuid4())
+
     yield mock    
 
 

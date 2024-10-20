@@ -83,3 +83,20 @@ curl -v -X POST -H "Content-Type: application/json" 'http://localhost:8000/store
 # NOTES
 1. Sometimes we need to re-create .venv. For example, if you restructure project and move files and folders around. For this you should only run `make install`
 2. See the content of temp file `ls -la /tmp/`
+
+
+# TO SET UP CREDENTIALS FOR MINIO 
+1. Open your .zshrc file:
+```
+nano ~/.zshrc
+```
+2. Add MinIO credentials:
+```
+export MINIO_ACCESS_KEY="minio_user"
+export MINIO_SECRET_KEY="minio_password"
+```
+3. Save and exit: If you're using nano, press CTRL + X, then Y to confirm, and press Enter to save.
+4. Apply the changes by sourcing the file or restarting your terminal
+```
+source ~/.zshrc
+```

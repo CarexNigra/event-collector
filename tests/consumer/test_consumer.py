@@ -8,7 +8,6 @@ import json
 from consumer.consumer import LocalFileWriter, EventConsumer
 
 
-# TODO: Rewrite test according to the batch writing logic
 def test_consumption(kafka_consumer_mock, clean_up_temp): 
     # (1) Mock config and define temp folder
     general_config_dict = {
@@ -18,6 +17,7 @@ def test_consumption(kafka_consumer_mock, clean_up_temp):
         "batch_size": 5,  
         "flush_interval": 10,
         "consumption_period": 16, 
+        "consumer_group_id": "cons_gr_id",
     }
     # 16 seconds is sufficient to generate 3-4 batches of messages to be written in 2 separate files
     # Each message is of size 266 B, each batch contains up to 5 messages. File contains up to 3000 B
@@ -25,7 +25,6 @@ def test_consumption(kafka_consumer_mock, clean_up_temp):
 
     # (2) Instantiate local file writer
     file_writer = LocalFileWriter(
-        # event_json_data={},
         root_path=general_config_dict["root_path"] + f"/{temp_folder_uuid}",
         max_output_file_size=general_config_dict["max_output_file_size"]
     )
@@ -34,6 +33,7 @@ def test_consumption(kafka_consumer_mock, clean_up_temp):
     event_consumer = EventConsumer(
         file_writer=file_writer,
         consumer=kafka_consumer_mock,
+        consumer_group_id=general_config_dict["consumer_group_id"],
         topics=[general_config_dict["kafka_topic"]],
         batch_size=general_config_dict["batch_size"],
         flush_interval=general_config_dict["flush_interval"],

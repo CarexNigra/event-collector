@@ -2,7 +2,8 @@ import os
 import tomllib
 from functools import lru_cache
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict 
+from pydantic_settings import BaseSettings
 
 
 def get_config_path():
@@ -60,8 +61,17 @@ class ConfigParser:
         for section_name in self._config.keys():
             all_configs_dict[section_name] = self._get_section(section_name)
         return all_configs_dict
-
     
+
+class MinioProperties(BaseSettings):
+    endpoint: str
+    access_key: str
+    secret_key: str
+    secure: bool 
+
+    class Config:
+        env_prefix = "MINIO_"
+
 
 @lru_cache
 def get_config():

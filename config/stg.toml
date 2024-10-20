@@ -19,12 +19,10 @@ request_timeout_ms = 30000
 # TODO: Figure out which configs should be here
 [consumer]
 bootstrap_servers = "host1:9092,host2:9092"
-group.id = 'test_events_consumer_group'
-partition.assignment.strategy = 'range'
-auto.offset.reset = 'smallest'
+group_id = 'test_events_consumer_group'
+partition_assignment_strategy = 'range'
+auto_offset_reset = 'smallest'
 
 [minio]
 endpoint = "localhost:9000"
-access_key="minio_user"
-secret_key="minio_password"
 secure= false 

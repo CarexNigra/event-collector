@@ -17,7 +17,7 @@ from minio.error import S3Error
 from confluent_kafka import Consumer
 from google.protobuf.json_format import MessageToJson
 
-from config.config import KafkaConsumerProperties, get_config
+from config.config import KafkaConsumerProperties, MinioProperties, get_config
 from events_registry.events_registry import events_mapping
 from events_registry.key_manager import ProducerKeyManager
 
@@ -46,10 +46,10 @@ def create_kafka_consumer(config: Optional[dict[str, Any]] = None) -> Consumer:
 
 def parse_message(message):
     event_type = ProducerKeyManager(producer_key=message.key().decode("utf-8")).get_event_type_from_key()
-    # logger.debug(f"\nEvent type: {event_type}")
+    # logger.debug(f"Event type: {event_type}")
 
     binary_value = message.value()
-    # logger.debug(f"\nValue: {binary_value}")
+    # logger.debug(f"Value: {binary_value}")
 
     if event_type in events_mapping:
         event_class = events_mapping.get(event_type)
@@ -68,8 +68,14 @@ def parse_message(message):
 def create_minio_client(config: Optional[dict[str, Any]] = None) -> Minio: 
     if not config:
         config = get_config()['minio']
-    minio_client = Minio(**config)
+    minio_config = MinioProperties(**config)
+
+    logger.info(f"Minio config: {minio_config}, {type(minio_config)}")
+    minio_config_dict = minio_config.model_dump(by_alias=True)
+    # logger.info(f"Minio config: {minio_config_dict}, {type(minio_config_dict)}")
+    minio_client = Minio(**minio_config_dict)
     return minio_client
+
 
 def create_bucket(bucket_name: str, minio_client: Minio) -> None:
     try:
@@ -88,8 +94,7 @@ def create_bucket(bucket_name: str, minio_client: Minio) -> None:
 class FileWriterBase(abc.ABC):
     # NOTE: This is an abstract class to make file writing env agnostic
 
-    def __init__(self, max_output_file_size): # event_json_data
-        # self._event_json_data = event_json_data
+    def __init__(self, max_output_file_size):
         self._max_output_file_size = max_output_file_size
     
     def parse_received_at_date(self, message):
@@ -104,11 +109,11 @@ class FileWriterBase(abc.ABC):
         }
         return date_dict
     
-    def get_or_create_file_path(self, json_files: List[str], folder_path: str, date_dict: dict, messages_size: int) -> str:
+    def get_or_create_file_path(self, json_files: List[str], folder_path: str, date_dict: dict, messages_size: int, unique_consumer_id: str) -> str:
         # (1) Check existing files
         if json_files:
             # Select "most recent" file (by its event-timestamp name),
-            most_recent_file_path = max(json_files, key=lambda f: int(os.path.splitext(os.path.basename(f))[0]))
+            most_recent_file_path = max(json_files, key=lambda f: int(os.path.splitext(os.path.basename(f).split('_')[-1])[0]))
             # Check its size in bytes
             # This needs to be overridden by subclasses because they handle file sizes differently
             file_size = self.get_file_size(most_recent_file_path)
@@ -117,12 +122,12 @@ class FileWriterBase(abc.ABC):
             if file_size + messages_size < self._max_output_file_size:
                 file_path = most_recent_file_path
             else:
-                file_name = f"{date_dict['int_timestamp']}.json"
+                file_name = f"{unique_consumer_id}_{date_dict['int_timestamp']}.json"
                 file_path = os.path.join(folder_path, file_name)
 
         # (2) Create file if there are no files
         if not json_files:
-            file_name = f"{date_dict['int_timestamp']}.json"
+            file_name = f"{unique_consumer_id}_{date_dict['int_timestamp']}.json"
             file_path = os.path.join(folder_path, file_name)
 
         return file_path
@@ -132,11 +137,11 @@ class FileWriterBase(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def get_full_path(self) -> str:
+    def get_full_path(self, messages: List[dict], unique_consumer_id: str) -> str:
         pass
 
     @abc.abstractmethod
-    def write_file(self, messages: List[dict]):
+    def write_file(self, messages: List[dict], unique_consumer_id: str):
         pass
 
 
@@ -148,7 +153,7 @@ class LocalFileWriter(FileWriterBase):
     def get_file_size(self, file_path: str) -> int:
         return os.path.getsize(file_path)
 
-    def get_full_path(self, messages: List[dict]) -> str:
+    def get_full_path(self, messages: List[dict], unique_consumer_id: str) -> str:
         first_message = messages[0]
         date_dict = self.parse_received_at_date(first_message)
 
@@ -167,17 +172,17 @@ class LocalFileWriter(FileWriterBase):
         # (4) Get file path
         serialized_messages = json.dumps(messages)
         messages_size = len(serialized_messages.encode('utf-8'))
-        file_path = self.get_or_create_file_path(json_files, folder_path, date_dict, messages_size)
+        file_path = self.get_or_create_file_path(json_files, folder_path, date_dict, messages_size, unique_consumer_id)
         
         return file_path
 
 
-    def write_file(self, messages: List[dict]):
+    def write_file(self, messages: List[dict], unique_consumer_id: str):
         
         if not messages:
             return
         
-        file_path = self.get_full_path(messages)
+        file_path = self.get_full_path(messages, unique_consumer_id)
         if file_path is None:
             return
 
@@ -208,8 +213,8 @@ class LocalFileWriter(FileWriterBase):
 
 
 class MinioFileWriter(FileWriterBase):
-    def __init__(self, root_path, max_output_file_size, minio_client): # event_json_data
-        super().__init__(max_output_file_size) # event_json_data
+    def __init__(self, root_path, max_output_file_size, minio_client): 
+        super().__init__(max_output_file_size) 
         self._root_path = root_path # = minio bucket_name TODO: should we rename it for comprehensibility?
         self._minio_client = minio_client
 
@@ -217,7 +222,7 @@ class MinioFileWriter(FileWriterBase):
         object_stat = self._minio_client.stat_object(self._root_path, file_path)
         return object_stat.size
 
-    def get_full_path(self, messages: List[dict]):
+    def get_full_path(self, messages: List[dict], unique_consumer_id: str):
         first_message = messages[0]
         date_dict = self.parse_received_at_date(first_message)
 
@@ -232,16 +237,16 @@ class MinioFileWriter(FileWriterBase):
         # (3) Check existing files
         serialized_messages = json.dumps(messages)
         messages_size = len(serialized_messages.encode('utf-8'))
-        file_path = self.get_or_create_file_path(json_files, folder_path, date_dict, messages_size)
+        file_path = self.get_or_create_file_path(json_files, folder_path, date_dict, messages_size, unique_consumer_id)
 
         return file_path
 
-    def write_file(self, messages: List[dict]):
+    def write_file(self, messages: List[dict], unique_consumer_id: str):
         if not messages:
             return
         
         # (1) Get path
-        file_path = self.get_full_path(messages)
+        file_path = self.get_full_path(messages, unique_consumer_id)
 
         # (2) Write
         # (2.1) Read existing data if the file exists
@@ -286,6 +291,7 @@ class EventConsumer:
     def __init__(self, 
                  file_writer: FileWriterBase, 
                  consumer: Consumer, 
+                 consumer_group_id: str,
                  topics: List[str], 
                  batch_size: int, 
                  flush_interval: int
@@ -299,13 +305,13 @@ class EventConsumer:
         self._lock = threading.Lock()  # to safely modify the message buffer
         self._last_flush_time = datetime.now()
         self._running = True  # Added this flag to control the loop
-        group_metadata = consumer.consumer_group_metadata()
-        group_id = group_metadata.id
+
+        # unique_consumer_id is needed to be added to the file name (to force different consumers' writing to different files)
         consumer_id = consumer.memberid()
-        if not group_id or not consumer_id:
+        if not consumer_group_id or not consumer_id:
             self._unique_consumer_id = str(uuid.uuid4())
         else:
-            self._unique_consumer_id = f"{group_id}_{consumer_id}"
+            self._unique_consumer_id = f"{consumer_group_id}_{consumer_id}"
 
     def stop(self):
         """Stop consumption loop"""
@@ -331,7 +337,7 @@ class EventConsumer:
                     # Continue with next message, do not stop processing
             if parsed_messages:
                 logger.info(f"(3) Flushing {len(parsed_messages)} parsed messages.")
-                self._file_writer.write_file(parsed_messages)  # Write batch of parsed messages
+                self._file_writer.write_file(parsed_messages, self._unique_consumer_id)  # Write batch of parsed messages
                 self._consumer.commit(asynchronous=True)  # Commit offsets after writing
                 # TODO: Figure out what is the best practice to commit, to avoid duplications when there are several replicas of the consumer
         finally:
@@ -379,27 +385,29 @@ class EventConsumer:
 if __name__ == "__main__":
     # (1) Get general properties
     general_config_dict = get_config()['general']
+    consumer_config_dict = get_config()['consumer']
 
-    # (2 Option 1) Instantiate Locacl file writer
-    file_writer = LocalFileWriter(
-        root_path=general_config_dict["root_path"],
-        max_output_file_size=general_config_dict["max_output_file_size"]
-    )
-
-    # # (2 Option 2) Instantiate Minio file writer
-    # minio_client = create_minio_client()
-    # create_bucket(general_config_dict["root_path"], minio_client)
-    # file_writer = MinioFileWriter(
+    # # (2 Option 1) Instantiate Locacl file writer
+    # file_writer = LocalFileWriter(
     #     root_path=general_config_dict["root_path"],
-    #     minio_client=minio_client,
     #     max_output_file_size=general_config_dict["max_output_file_size"]
     # )
+
+    # (2 Option 2) Instantiate Minio file writer
+    minio_client = create_minio_client()
+    create_bucket(general_config_dict["root_path"], minio_client)
+    file_writer = MinioFileWriter(
+        root_path=general_config_dict["root_path"],
+        minio_client=minio_client,
+        max_output_file_size=general_config_dict["max_output_file_size"]
+    )
 
     # (3) Instantiate consumer
     consumer = create_kafka_consumer()
     event_consumer = EventConsumer(
         file_writer=file_writer,
         consumer=consumer,
+        consumer_group_id=consumer_config_dict['group_id'],
         topics=[general_config_dict["kafka_topic"]],
         batch_size = general_config_dict["consumer_batch_size"], 
         flush_interval = general_config_dict["flush_interval"],
