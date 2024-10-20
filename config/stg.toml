@@ -1,7 +1,8 @@
 [general]
 kafka_topic = 'event-messages' 
-min_commit_count = 10 
 root_path = 'consumed-events'
+consumer_batch_size = 10
+flush_interval = 8 # Seconds
 max_output_file_size = 4194304 # 4Mb in bytes
 
 [producer]
@@ -18,7 +19,8 @@ request_timeout_ms = 30000
 # TODO: Figure out which configs should be here
 [consumer]
 bootstrap_servers = "host1:9092,host2:9092"
-group.id = 'foo'
+group.id = 'test_events_consumer_group'
+partition.assignment.strategy = 'range'
 auto.offset.reset = 'smallest'
 
 [minio]

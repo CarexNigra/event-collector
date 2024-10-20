@@ -12,6 +12,10 @@ from events.context_pb2 import EventContext
 from events_registry.events_registry import events_mapping
 from events_registry.key_manager import ProducerKeyManager
 
+from common.logger import get_logger
+
+logger = get_logger()
+
 
 # (1) Create event instance and populate it with data
 @pytest.fixture(scope="session")
@@ -44,6 +48,30 @@ def event_mock():
 
     return create_event
 
+@pytest.fixture(scope="session")
+def batch_of_events_mock(event_mock):
+   # Create message batches of message out of one sample message
+    test_configs = {
+        "number_of_test_messages": 25,
+        "consumer_batch_size": 10,
+    }
+    dict_of_batches = {}
+    for i in range(test_configs['number_of_test_messages']):
+        message_dict = event_mock()["event_json_data"]
+        #  Modify message for it to be potentially written into the next file
+        message_dict["context"]["receivedAt"] = str(int(message_dict["context"]["receivedAt"]) + i)
+
+        # Assign message to the random batch
+        batch_id = i//test_configs['consumer_batch_size'] # At most ten messages in a batch
+        if batch_id in dict_of_batches:
+            dict_of_batches[batch_id].append(message_dict)
+        else:
+            dict_of_batches[batch_id] = [message_dict]
+
+    logger.debug(f"{len(dict_of_batches.keys())} batches of messages have been created")
+
+    return dict_of_batches
+
 
 # (2) Create consumer mock
 @pytest.fixture(scope="session")
@@ -71,3 +99,7 @@ def clean_up_temp():
     # clean_up_temp as argument, first runs, than launches clean_up_temp running
     # in our case it is "test_consumption" function
     os.system("rm -rf /tmp/consumer_test_*")
+
+
+
+

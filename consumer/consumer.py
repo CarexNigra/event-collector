@@ -1,7 +1,11 @@
 import os
 import abc 
-from datetime import datetime
-from typing import List
+from datetime import datetime, timedelta
+from typing import List, Any, Optional
+import uuid
+
+import threading
+import queue
 
 import glob
 import json
@@ -25,9 +29,10 @@ logger = get_logger()
 # (1) Create consumer instance
 # ==================================== #
 
-def create_kafka_consumer() -> Consumer:
-    kafka_consumer_config_dict = get_config()['consumer']
-    kafka_consumer_config = KafkaConsumerProperties(**kafka_consumer_config_dict)
+def create_kafka_consumer(config: Optional[dict[str, Any]] = None) -> Consumer:
+    if not config:
+        config = get_config()['consumer']
+    kafka_consumer_config = KafkaConsumerProperties(**config)
 
     logger.info(f"Kafka consumer config: {kafka_consumer_config}")
     return Consumer(kafka_consumer_config.model_dump(by_alias=True))
@@ -52,7 +57,7 @@ def parse_message(message):
         event.ParseFromString(binary_value)
         event_json_string = MessageToJson(event)
         event_json_data = json.loads(event_json_string)
-        logger.info(f"Event class data type: {type(event_json_data)}, data: \n{event_json_data}")
+        logger.info(f"(2) Parsing. Event class data type: {type(event_json_data)}, data: \n{event_json_data}")
         return event_json_data
 
 
@@ -60,10 +65,10 @@ def parse_message(message):
 # (3) Set up stuff for Minio
 # ==================================== #
 
-def create_minio_client() -> Minio: 
-    # TODO: Move credentials from here to stg config
-    minio_config_dict = get_config()['minio']
-    minio_client = Minio(**minio_config_dict)
+def create_minio_client(config: Optional[dict[str, Any]] = None) -> Minio: 
+    if not config:
+        config = get_config()['minio']
+    minio_client = Minio(**config)
     return minio_client
 
 def create_bucket(bucket_name: str, minio_client: Minio) -> None:
@@ -77,28 +82,29 @@ def create_bucket(bucket_name: str, minio_client: Minio) -> None:
         logger.info(f"Error occurred: {exc}")
 
 # ==================================== #
-# (3) Set up FileWriters
+# (4) Set up FileWriters
 # ==================================== #
 
 class FileWriterBase(abc.ABC):
     # NOTE: This is an abstract class to make file writing env agnostic
 
-    def __init__(self, event_json_data, max_output_file_size):
-        self._event_json_data = event_json_data
+    def __init__(self, max_output_file_size): # event_json_data
+        # self._event_json_data = event_json_data
         self._max_output_file_size = max_output_file_size
     
-    def parse_received_at_date(self):
-        received_at_timestamp = datetime.fromtimestamp(int(self._event_json_data["context"]["receivedAt"]))
+    def parse_received_at_date(self, message):
+        # NOTE: The date is taken from the first message
+        received_at_timestamp = datetime.fromtimestamp(int(message["context"]["receivedAt"]))
         date_dict = {
             "year": str(received_at_timestamp.year),
             "day": str(received_at_timestamp.day),
             "month": str(received_at_timestamp.month),
             "hour": str(received_at_timestamp.hour),
-            "int_timestamp": str(self._event_json_data["context"]["receivedAt"]),
+            "int_timestamp": str(message["context"]["receivedAt"]),
         }
         return date_dict
     
-    def get_or_create_file_path(self, json_files: List[str], folder_path: str, date_dict: dict) -> str:
+    def get_or_create_file_path(self, json_files: List[str], folder_path: str, date_dict: dict, messages_size: int) -> str:
         # (1) Check existing files
         if json_files:
             # Select "most recent" file (by its event-timestamp name),
@@ -108,7 +114,7 @@ class FileWriterBase(abc.ABC):
             file_size = self.get_file_size(most_recent_file_path)
 
             # Define the path file will be written to
-            if file_size < self._max_output_file_size:
+            if file_size + messages_size < self._max_output_file_size:
                 file_path = most_recent_file_path
             else:
                 file_name = f"{date_dict['int_timestamp']}.json"
@@ -130,20 +136,21 @@ class FileWriterBase(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def write_file(self):
+    def write_file(self, messages: List[dict]):
         pass
 
 
 class LocalFileWriter(FileWriterBase):
-    def __init__(self, event_json_data, root_path, max_output_file_size):
-        super().__init__(event_json_data, max_output_file_size)
+    def __init__(self, root_path, max_output_file_size): # event_json_data
+        super().__init__(max_output_file_size) 
         self._root_path = root_path
 
     def get_file_size(self, file_path: str) -> int:
         return os.path.getsize(file_path)
 
-    def get_full_path(self) -> str:
-        date_dict = self.parse_received_at_date()
+    def get_full_path(self, messages: List[dict]) -> str:
+        first_message = messages[0]
+        date_dict = self.parse_received_at_date(first_message)
 
         # (1) Check if the subfolder exists in the consumer_output folder
         folder_path = os.path.join(
@@ -158,13 +165,19 @@ class LocalFileWriter(FileWriterBase):
         json_files = glob.glob(os.path.join(folder_path, "*.json"))
 
         # (4) Get file path
-        file_path = self.get_or_create_file_path(json_files, folder_path, date_dict)
+        serialized_messages = json.dumps(messages)
+        messages_size = len(serialized_messages.encode('utf-8'))
+        file_path = self.get_or_create_file_path(json_files, folder_path, date_dict, messages_size)
         
         return file_path
 
 
-    def write_file(self):
-        file_path = self.get_full_path()
+    def write_file(self, messages: List[dict]):
+        
+        if not messages:
+            return
+        
+        file_path = self.get_full_path(messages)
         if file_path is None:
             return
 
@@ -184,28 +197,29 @@ class LocalFileWriter(FileWriterBase):
             return
 
         # Append the new event data to existing data
-        existing_data.append(self._event_json_data)
+        existing_data.extend(messages)
 
         # Write back the updated data
         with open(file_path, "w") as json_file:
             json.dump(existing_data, json_file)
-        logger.info(f"JSON file saved to: {file_path}")
+        logger.info(f"(4) Saving. JSON file saved to: {file_path}")
         
 
 
 
 class MinioFileWriter(FileWriterBase):
-    def __init__(self, event_json_data, root_path, max_output_file_size, minio_client):
-        super().__init__(event_json_data, max_output_file_size)
-        self._root_path = root_path # = bucket_name TODO: should we rename it for comprehensibility?
+    def __init__(self, root_path, max_output_file_size, minio_client): # event_json_data
+        super().__init__(max_output_file_size) # event_json_data
+        self._root_path = root_path # = minio bucket_name TODO: should we rename it for comprehensibility?
         self._minio_client = minio_client
 
     def get_file_size(self, file_path: str) -> int:
         object_stat = self._minio_client.stat_object(self._root_path, file_path)
         return object_stat.size
 
-    def get_full_path(self):
-        date_dict = self.parse_received_at_date()
+    def get_full_path(self, messages: List[dict]):
+        first_message = messages[0]
+        date_dict = self.parse_received_at_date(first_message)
 
         # (1) Define folder path
         folder_path = os.path.join(
@@ -216,13 +230,18 @@ class MinioFileWriter(FileWriterBase):
         json_files = [obj.object_name for obj in objects if obj.object_name.endswith('.json')]
 
         # (3) Check existing files
-        file_path = self.get_or_create_file_path(json_files, folder_path, date_dict)
+        serialized_messages = json.dumps(messages)
+        messages_size = len(serialized_messages.encode('utf-8'))
+        file_path = self.get_or_create_file_path(json_files, folder_path, date_dict, messages_size)
 
         return file_path
 
-    def write_file(self):
+    def write_file(self, messages: List[dict]):
+        if not messages:
+            return
+        
         # (1) Get path
-        file_path = self.get_full_path()
+        file_path = self.get_full_path(messages)
 
         # (2) Write
         # (2.1) Read existing data if the file exists
@@ -243,7 +262,7 @@ class MinioFileWriter(FileWriterBase):
             return
         
         # Append the new event data to existing data
-        existing_data.append(self._event_json_data)
+        existing_data.extend(messages)
 
         # Convert updated data back to JSON string
         json_data = json.dumps(existing_data)
@@ -256,57 +275,102 @@ class MinioFileWriter(FileWriterBase):
             length=len(json_data),
             content_type="application/json"
         )
-        logger.info(f"JSON file saved to MinIO at: {file_path}")
+        logger.info(f"(4) Saving. JSON file saved to MinIO at: {file_path}")
 
 
 # ==================================== #
-# (4) Set up EventConsumer
+# (5) Set up EventConsumer
 # ==================================== #
 
 class EventConsumer:
-    def __init__(self, file_writer: FileWriterBase, consumer: Consumer, topics: List[str], min_commit_count: int):
+    def __init__(self, 
+                 file_writer: FileWriterBase, 
+                 consumer: Consumer, 
+                 topics: List[str], 
+                 batch_size: int, 
+                 flush_interval: int
+                 ):
         self._file_writer = file_writer
         self._consumer = consumer
         self._topics = topics
-        self._min_commit_count = min_commit_count
+        self._batch_size = batch_size  # max number of messages to batch before writing
+        self._flush_interval = timedelta(seconds=flush_interval)  # interval to write in-memory messages to storage, even if batch_size is not reached; in seconds
+        self._message_queue = queue.Queue()  # in-memory queue for buffering raw messages
+        self._lock = threading.Lock()  # to safely modify the message buffer
+        self._last_flush_time = datetime.now()
         self._running = True  # Added this flag to control the loop
+        group_metadata = consumer.consumer_group_metadata()
+        group_id = group_metadata.id
+        consumer_id = consumer.memberid()
+        if not group_id or not consumer_id:
+            self._unique_consumer_id = str(uuid.uuid4())
+        else:
+            self._unique_consumer_id = f"{group_id}_{consumer_id}"
 
     def stop(self):
+        """Stop consumption loop"""
         self._running = False  # Added a method to stop the loop
+        self._flush_messages()  # Ensure remaining messages are written when stopping
+    
+    def _flush_messages(self):
+        """Flush messages in the buffer to storage"""
+        parsed_messages = []
+        unqiue_msgs = set() # To deduplicate messages having the same content (even if msg_ids are the same)
+        self._lock.acquire()  # Manually acquire the lock (instead of with self._lock)
+        try:
+            while not self._message_queue.empty() and len(parsed_messages) < self._batch_size:
+                raw_msg = self._message_queue.get()
+                try:
+                    # Attempt to parse the raw message
+                    if raw_msg is not None and raw_msg not in unqiue_msgs:
+                        message_dict: dict = parse_message(raw_msg)
+                        parsed_messages.append(message_dict)
+                        unqiue_msgs.add(raw_msg)
+                except Exception as e:
+                    logger.error(f"(2) Parsing. Error parsing message: {raw_msg}. Exception: {e}")
+                    # Continue with next message, do not stop processing
+            if parsed_messages:
+                logger.info(f"(3) Flushing {len(parsed_messages)} parsed messages.")
+                self._file_writer.write_file(parsed_messages)  # Write batch of parsed messages
+                self._consumer.commit(asynchronous=True)  # Commit offsets after writing
+                # TODO: Figure out what is the best practice to commit, to avoid duplications when there are several replicas of the consumer
+        finally:
+            self._lock.release()  # Manually release the lock even if there's an error
         
+
     def run_consume_loop(self):
         try:
             self._consumer.subscribe(self._topics)
-            msg_count = 0
+            
             while self._running: # Added to stop the loop
-            # while True:
-                msg = self._consumer.poll(timeout=1.0)
-                logger.info(f"\n Message: {msg}")
+                msg = self._consumer.poll(timeout=1.0) # Waits for up to 1 second before returning None if no message is available.
+                logger.info(f"(1) Consumption. Message: {msg}")
                 if msg is None:
                     continue
-
                 if msg.error():
-                    logger.info("Kafka message error")
+                    logger.info("(1) Consumption. Kafka message error")
                 else:
-                    message_dict = parse_message(msg)
-                    logger.debug("message_dict: ", message_dict)
-                    self._file_writer._event_json_data = message_dict
-                    logger.debug("self._file_writer._event_json_data: ", self._file_writer._event_json_data)
-                    self._file_writer.write_file()
-                
-                    msg_count += 1
-                    if msg_count % self._min_commit_count == 0:
-                        self._consumer.commit(asynchronous=True)
-            
+                    self._message_queue.put(msg) 
 
+                    # Flushing option by batch size
+                    if self._message_queue.qsize() >= self._batch_size:
+                        self._flush_messages()
+
+                    # Flushing option by time
+                    current_time = datetime.now()
+                    if current_time - self._last_flush_time >= self._flush_interval:
+                        self._flush_messages()
+                        self._last_flush_time = current_time
+            
         finally:
             # Close down consumer to commit final offsets.
+            self._flush_messages()
             self._consumer.close()
 
 
 
 # ==================================== #
-# (5) Test that it works
+# (6) Test that it works
 # ==================================== #
 
 # ENVIRONMENT=dev PYTHONPATH=. poetry run python ./consumer/consumer.py
@@ -317,21 +381,19 @@ if __name__ == "__main__":
     general_config_dict = get_config()['general']
 
     # (2 Option 1) Instantiate Locacl file writer
-    # file_writer = LocalFileWriter(
-    #     event_json_data={},
-    #     root_path=general_config_dict["root_path"],
-    #     max_output_file_size=general_config_dict["max_output_file_size"]
-    # )
-
-    # # (2 Option 2) Instantiate Minio file writer
-    minio_client = create_minio_client()
-    create_bucket(general_config_dict["root_path"], minio_client)
-    file_writer = MinioFileWriter(
-        event_json_data={},
+    file_writer = LocalFileWriter(
         root_path=general_config_dict["root_path"],
-        minio_client=minio_client,
         max_output_file_size=general_config_dict["max_output_file_size"]
     )
+
+    # # (2 Option 2) Instantiate Minio file writer
+    # minio_client = create_minio_client()
+    # create_bucket(general_config_dict["root_path"], minio_client)
+    # file_writer = MinioFileWriter(
+    #     root_path=general_config_dict["root_path"],
+    #     minio_client=minio_client,
+    #     max_output_file_size=general_config_dict["max_output_file_size"]
+    # )
 
     # (3) Instantiate consumer
     consumer = create_kafka_consumer()
@@ -339,7 +401,8 @@ if __name__ == "__main__":
         file_writer=file_writer,
         consumer=consumer,
         topics=[general_config_dict["kafka_topic"]],
-        min_commit_count=general_config_dict["min_commit_count"]
+        batch_size = general_config_dict["consumer_batch_size"], 
+        flush_interval = general_config_dict["flush_interval"],
     )
 
     # (4) Write
