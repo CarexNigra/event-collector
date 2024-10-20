@@ -6,7 +6,7 @@ SHELL := /bin/bash
 %:
 	@:
 
-export SERVICE_NAME=eventhub-api
+export PYTHONPATH=.
 
 ifndef PROMETHEUS_MULTIPROC_DIR
 	export PROMETHEUS_MULTIPROC_DIR=${PWD}/.prometheus
@@ -19,6 +19,27 @@ endif
 ifndef PROMETHEUS_PORT
 	export PROMETHEUS_PORT=8001
 endif
+
+ifndef GUNICORN_TIMEOUT
+	export GUNICORN_TIMEOUT=60
+endif
+
+ifndef GUNICORN_GRACEFUL_TIMEOUT
+	export GUNICORN_GRACEFUL_TIMEOUT=20
+endif
+
+ifndef GUNICORN_WORKERS
+	export GUNICORN_WORKERS=1
+endif
+
+ifndef GUNICORN_MAX_REQUESTS
+	export GUNICORN_MAX_REQUESTS=1000
+endif
+
+ifndef GUNICORN_KEEP_ALIVE
+	export GUNICORN_KEEP_ALIVE=5
+endif
+
 
 DEFAULT_GOAL := help
 .PHONY: help
@@ -57,19 +78,43 @@ clean-prometheus-dir: ## Clean Prometheus multiprocess directory, if exists.
 tests: clean-prometheus-dir ## Run tests.
 	printf "Tests with Pytest\n"
 ifeq (plain, $(filter plain,$(MAKECMDGOALS)))
-	PYTHONPATH=. pytest tests -s
+	pytest tests -s
 else
-	PYTHONPATH=. poetry run pytest -s
+	poetry run pytest -s
 endif
 
 .PHONY: battery
 battery: style-check static-check tests ## Run all checks and tests
 	printf "\nPassed all checks and tests...\n"
 
-.PHONY: run
-run: clean-prometheus-dir ## Run service with dev configuration.
+.PHONY: run.api
+run.api: clean-prometheus-dir ## Run service with dev configuration.
 ifeq (plain, $(filter plain,$(MAKECMDGOALS)))
 	$(SHELL) serve.sh
 else
 	poetry run $(SHELL) serve.sh
+endif
+
+.PHONY: run.consumer
+run.consumer: clean-prometheus-dir ## Run service with dev configuration.
+ifeq (plain, $(filter plain,$(MAKECMDGOALS)))
+	python consumer/consumer.py
+else
+	poetry run python consumer/consumer.py
+endif
+
+.PHONY: run.producer
+run.producer: clean-prometheus-dir ## Run service with dev configuration.
+ifeq (plain, $(filter plain,$(MAKECMDGOALS)))
+	python api/producer.py
+else
+	poetry run python api/producer.py
+endif
+
+.PHONY: create-proto
+create-proto: ## Generate proto files
+ifeq (plain, $(filter plain,$(MAKECMDGOALS)))
+	$(SHELL) proto_generate.sh
+else
+	poetry run $(SHELL) proto_generate.sh
 endif

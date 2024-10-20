@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package events;
+
+message EventContext { // Didn't succeed to move it to separate file (import was not working)
+    optional int64 sent_at = 1;
+    optional int64 received_at = 2;
+    optional int64 processed_at = 3;
+    optional string message_id = 4;
+    optional string user_agent = 5;
+}
