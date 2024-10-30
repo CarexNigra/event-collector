@@ -3,3 +3,5 @@ __pycache__
 .prometheus
 .DS_Store
 consumer_output*
+.mypy_cache
+.pytest_cache

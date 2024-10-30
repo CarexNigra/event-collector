@@ -41,7 +41,7 @@ To activate certain python `.venv` in vscode (to make code highlighting work) - 
 * go to api folder (where Makefile is located): make run
 * go to the separate terminal, send test event to api
 ```shell
-curl -v -X POST -H "Content-Type: application/json" 'http://localhost:8000/store' -d '{"event_name": "TestEvent", "context": {"sent_at": 1701530942, "received_at": 1701530942, "processed_at": 1701530942, "message_id": "36eca638-4c0f-4d11-bc9b-cc2290851032", "user_agent": "some_user_agent"}, "data": {"user_id": "example_user_id", "account_id": "example_account_id", "user_role": "OWNER"}}'
+curl -v -X POST -H "Content-Type: application/json" 'http://localhost:5000/store' -d '{"event_name": "TestEvent", "context": {"sent_at": 1701530942, "received_at": 1701530942, "processed_at": 1701530942, "message_id": "36eca638-4c0f-4d11-bc9b-cc2290851032", "user_agent": "some_user_agent"}, "data": {"user_id": "example_user_id", "account_id": "example_account_id", "user_role": "OWNER"}}'
 ```  
 
 4. Check that event ends up in the consumer logs
@@ -72,7 +72,7 @@ curl -v -X POST -H "Content-Type: application/json" 'http://localhost:8000/store
 * Go to the folder where Makefile is located (root): `make run.api`
 * Open yet another terminal session, send test event to api
 ```shell
-curl -v -X POST -H "Content-Type: application/json" 'http://localhost:8000/store' -d '{"event_name": "TestEvent", "context": {"sent_at": 1701530942, "received_at": 1701530942, "processed_at": 1701530942, "message_id": "36eca638-4c0f-4d11-bc9b-cc2290851032", "user_agent": "some_user_agent"}, "data": {"user_id": "example_user_id", "account_id": "example_account_id", "user_role": "OWNER"}}'
+curl -v -X POST -H "Content-Type: application/json" 'http://localhost:5000/store' -d '{"event_name": "TestEvent", "context": {"sent_at": 1701530942, "received_at": 1701530942, "processed_at": 1701530942, "message_id": "36eca638-4c0f-4d11-bc9b-cc2290851032", "user_agent": "some_user_agent"}, "data": {"user_id": "example_user_id", "account_id": "example_account_id", "user_role": "OWNER"}}'
 ```  
 
 3. Check that event ends up in the consumer logs
@@ -100,3 +100,16 @@ export MINIO_SECRET_KEY="minio_password"
 ```
 source ~/.zshrc
 ```
+
+# TODO
+1. 3 brockers and zookeeper
+2. Each event – write to new line
+2. Avoid reading to get file size. Use storage methods
+2. Checks with ruff
+3. CI/CD: github workflow: checks and tests
+4. Prometheus metrics
+– for producer
+– for consumer
+5. Readme
+6. Miro board with service map
+7. Blog post

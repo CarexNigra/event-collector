@@ -90,9 +90,9 @@ battery: style-check static-check tests ## Run all checks and tests
 .PHONY: run.api
 run.api: clean-prometheus-dir ## Run service with dev configuration.
 ifeq (plain, $(filter plain,$(MAKECMDGOALS)))
-	$(SHELL) serve.sh
+	python serve.py
 else
-	poetry run $(SHELL) serve.sh
+	poetry run python serve.py
 endif
 
 .PHONY: run.consumer
