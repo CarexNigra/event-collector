@@ -17,6 +17,7 @@ logger = get_logger()
 @lru_cache
 def create_kafka_producer() -> Producer:
     kafka_producer_config_dict = get_config()['producer']
+    # print(">>>", kafka_producer_config_dict) # TODO: fix why properties not being initialized with config values
     kafka_producer_config = KafkaProducerProperties(**kafka_producer_config_dict)
     
     logger.info(f"Kafka producer config: {kafka_producer_config}")

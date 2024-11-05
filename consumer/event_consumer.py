@@ -1,27 +1,21 @@
-import os
-import abc 
 from datetime import datetime, timedelta
 from typing import List, Any, Optional
 import uuid
-import traceback
 
-import threading
-import queue
-
-import glob
 import json
-
-from io import BytesIO
-from minio import Minio
-from minio.error import S3Error
 
 from confluent_kafka import Consumer
 from google.protobuf.json_format import MessageToJson
 
-from config.config import KafkaConsumerProperties, MinioProperties, get_config
+from config.config import KafkaConsumerProperties, get_config
 from events_registry.events_registry import events_mapping
 from events_registry.key_manager import ProducerKeyManager
 
+# import consumer
+from consumer.file_writers import FileWriterBase 
+# from consumer import file_writers as fw
+
+import traceback
 from common.logger import get_logger
 
 logger = get_logger()
@@ -63,146 +57,7 @@ def parse_message(message):
 
 
 # ==================================== #
-# (3) Set up stuff for Minio
-# ==================================== #
-
-def create_minio_client(config: Optional[dict[str, Any]] = None) -> Minio: 
-    if not config:
-        config = get_config()['minio']
-    minio_config = MinioProperties(**config)
-
-    logger.info(f"Minio config: {minio_config}, {type(minio_config)}")
-    minio_config_dict = minio_config.model_dump(by_alias=True)
-    # logger.info(f"Minio config: {minio_config_dict}, {type(minio_config_dict)}")
-    minio_client = Minio(**minio_config_dict)
-    return minio_client
-
-
-def create_bucket(bucket_name: str, minio_client: Minio) -> None:
-    try:
-        if not minio_client.bucket_exists(bucket_name):
-            minio_client.make_bucket(bucket_name)
-            logger.info(f"Bucket '{bucket_name}' created successfully")
-        else:
-            logger.info(f"Bucket '{bucket_name}' already exists")
-    except S3Error as exc:
-        logger.info(f"Error occurred: {exc}")
-
-# ==================================== #
-# (4) Set up FileWriters
-# ==================================== #
-
-class FileWriterBase(abc.ABC):
-    # NOTE: This is an abstract class to make file writing env agnostic
-    
-    def parse_received_at_date(self, message):
-        # NOTE: The date is taken from the first message
-        msg_decoded = json.loads(message)
-        received_at_timestamp = datetime.fromtimestamp(int(msg_decoded["context"]["receivedAt"]))
-        date_dict = {
-            "year": str(received_at_timestamp.year),
-            "day": str(received_at_timestamp.day),
-            "month": str(received_at_timestamp.month),
-            "hour": str(received_at_timestamp.hour),
-            "int_timestamp": str(msg_decoded["context"]["receivedAt"]),
-        }
-        return date_dict
-    
-    def create_file_path(self, folder_path: str, date_dict: dict, unique_consumer_id: str)-> str:
-        file_name = f"{unique_consumer_id}_{date_dict['int_timestamp']}.json"
-        file_path = os.path.join(folder_path, file_name)
-        return file_path
-
-    @abc.abstractmethod
-    def get_full_path(self, messages: List[dict], unique_consumer_id: str) -> str:
-        pass
-
-    @abc.abstractmethod
-    def write_file(self, messages: List[dict], unique_consumer_id: str):
-        pass
-
-
-class LocalFileWriter(FileWriterBase):
-    def __init__(self, root_path): 
-        self._root_path = root_path
-
-    def get_full_path(self, messages: List[dict], unique_consumer_id: str) -> str:
-        first_message = messages[0]
-        date_dict = self.parse_received_at_date(first_message)
-
-        # (1) Check if the subfolder exists in the consumer_output folder
-        folder_path = os.path.join(
-            self._root_path, date_dict["year"], date_dict["month"], date_dict["day"], date_dict["hour"]
-        )
-
-        # (2) Create the folder if it doesn't exist
-        if not os.path.exists(folder_path):
-            os.makedirs(folder_path, exist_ok=True)
-
-        # (3) Create file path
-        file_path = self.create_file_path(folder_path, date_dict, unique_consumer_id)
-        
-        return file_path
-
-
-    def write_file(self, messages: List[dict], unique_consumer_id: str):
-        
-        if not messages:
-            return
-        
-        file_path = self.get_full_path(messages, unique_consumer_id)
-        if file_path is None:
-            return
-
-        with open(file_path, "w") as json_file:
-            json.dump(messages, json_file)
-        logger.info(f"(4) Saving. JSON file saved to: {file_path}")
-
-
-
-
-class MinioFileWriter(FileWriterBase):
-    def __init__(self, root_path, minio_client): 
-        self._root_path = root_path # = minio bucket_name TODO: should we rename it for comprehensibility?
-        self._minio_client = minio_client
-
-    def get_full_path(self, messages: List[dict], unique_consumer_id: str):
-        first_message = messages[0]
-        date_dict = self.parse_received_at_date(first_message)
-
-        # (1) Define folder path
-        folder_path = os.path.join(
-            date_dict["year"], date_dict["month"], date_dict["day"], date_dict["hour"]
-        )
-
-        # (2) Create file path
-        file_path = self.create_file_path(folder_path, date_dict, unique_consumer_id)
-
-        return file_path
-
-    def write_file(self, messages: List[dict], unique_consumer_id: str):
-        if not messages:
-            return
-        
-        # (1) Get path
-        file_path = self.get_full_path(messages, unique_consumer_id)
-
-        # Convert updated data back to JSON string
-        json_data = json.dumps(messages)
-
-        # Write the updated data back to MinIO
-        self._minio_client.put_object(
-            bucket_name=self._root_path,
-            object_name=file_path,
-            data=BytesIO(json_data.encode("utf-8")),
-            length=len(json_data),
-            content_type="application/json"
-        )
-        logger.info(f"(4) Saving. JSON file saved to MinIO at: {file_path}")
-
-
-# ==================================== #
-# (5) Set up EventConsumer
+# (3) Set up EventConsumer
 # ==================================== #
 
 class EventConsumer:
@@ -264,9 +119,9 @@ class EventConsumer:
                     if raw_msg not in unqiue_msgs:
                         # Parse message
                         msg_dict = parse_message(raw_msg)
-                        msg_str = json.dumps(msg_dict) + "\n"
-                        msg_size = len(msg_str.encode("utf-8"))
-
+                        msg_str = json.dumps(msg_dict)
+                        msg_size = len((msg_str + "\n").encode("utf-8")) 
+                        
                         # No flushing conditions, message is added to queue    
                         if queue_size_bytes + msg_size <= self._max_output_file_size:
                             self._message_queue.append(msg_str)
@@ -289,7 +144,7 @@ class EventConsumer:
                             unqiue_msgs = set()
                 
                 except Exception as e:
-                    # stack_trace = traceback.format_exc()
+                    stack_trace = traceback.format_exc()
                     # print(stack_trace)
                     logger.error(f"(2) Parsing. Error parsing message: {raw_msg}. Exception: {stack_trace}")
                     # Continue with next message, do not stop processing
@@ -305,26 +160,28 @@ class EventConsumer:
 # (6) Test that it works
 # ==================================== #
 
-# ENVIRONMENT=dev PYTHONPATH=. poetry run python ./consumer/consumer.py
-# ENVIRONMENT=stg PYTHONPATH=. poetry run python ./consumer/consumer.py
+# ENVIRONMENT=dev PYTHONPATH=. poetry run python ./consumer/event_consumer.py
+# ENVIRONMENT=stg PYTHONPATH=. poetry run python ./consumer/event_consumer.py
 
 if __name__ == "__main__":
+
+    from file_writers import LocalFileWriter, MinioFileWriter, create_bucket, create_minio_client
     # (1) Get general properties
     general_config_dict = get_config()['general']
     consumer_config_dict = get_config()['consumer']
 
-    # # (2 Option 1) Instantiate Locacl file writer
-    # file_writer = LocalFileWriter(
-    #     root_path=general_config_dict["root_path"],
-    # )
-
-    # (2 Option 2) Instantiate Minio file writer
-    minio_client = create_minio_client()
-    create_bucket(general_config_dict["root_path"], minio_client)
-    file_writer = MinioFileWriter(
+    # (2 Option 1) Instantiate Locacl file writer
+    file_writer = LocalFileWriter(
         root_path=general_config_dict["root_path"],
-        minio_client=minio_client,
     )
+
+    # # (2 Option 2) Instantiate Minio file writer
+    # minio_client = create_minio_client()
+    # create_bucket(general_config_dict["root_path"], minio_client)
+    # file_writer = MinioFileWriter(
+    #     root_path=general_config_dict["root_path"],
+    #     minio_client=minio_client,
+    # )
 
     # (3) Instantiate consumer
     consumer = create_kafka_consumer()

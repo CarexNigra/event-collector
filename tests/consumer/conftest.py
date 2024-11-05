@@ -48,29 +48,21 @@ def event_mock():
 
     return create_event
 
+
 @pytest.fixture(scope="session")
-def batch_of_events_mock(event_mock):
-   # Create message batches of message out of one sample message
-    test_configs = {
-        "number_of_test_messages": 25,
-        "consumer_batch_size": 10,
-    }
-    dict_of_batches = {}
-    for i in range(test_configs['number_of_test_messages']):
+def batch_of_events_mock(event_mock, number_of_messages_in_batch: str = 25):
+
+    batch = []
+    for i in range(number_of_messages_in_batch):
         message_dict = event_mock()["event_json_data"]
-        #  Modify message for it to be potentially written into the next file
+        #  Modify message for it to have different receivedAt timestamp
         message_dict["context"]["receivedAt"] = str(int(message_dict["context"]["receivedAt"]) + i)
+        message_str = json.dumps(message_dict)
+        batch.append(message_str)
 
-        # Assign message to the random batch
-        batch_id = i//test_configs['consumer_batch_size'] # At most ten messages in a batch
-        if batch_id in dict_of_batches:
-            dict_of_batches[batch_id].append(message_dict)
-        else:
-            dict_of_batches[batch_id] = [message_dict]
+    logger.debug(f"A batch of {len(batch)} messages has been created")
 
-    logger.debug(f"{len(dict_of_batches.keys())} batches of messages have been created")
-
-    return dict_of_batches
+    return batch
 
 
 # (2) Create consumer mock

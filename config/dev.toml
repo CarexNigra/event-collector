@@ -6,7 +6,8 @@ flush_interval = 8 # Seconds
 max_output_file_size = 4194304 # 4Mb in bytes
 
 [producer]
-bootstrap_servers = "localhost:9092"
+# bootstrap_servers = ["localhost:9092", "localhost:9094", "localhost:9095"]
+bootstrap_servers = "localhost:9092,localhost:9094,localhost:9095"
 retries = 2147483647
 max_in_flight_requests_per_connection = 1 # TODO: To enable retries without reordering
 acks = 'all'

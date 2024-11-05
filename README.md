@@ -103,8 +103,6 @@ source ~/.zshrc
 
 # TODO
 1. 3 brockers and zookeeper
-2. Each event – write to new line
-2. Avoid reading to get file size. Use storage methods
 2. Checks with ruff
 3. CI/CD: github workflow: checks and tests
 4. Prometheus metrics

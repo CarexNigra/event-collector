@@ -23,7 +23,8 @@ def underscore_to_dot(string: str) -> str:
 
 # TODO: To figure out which properties should be here
 class KafkaConsumerProperties(BaseModel):
-    bootstrap_servers: str = "localhost:9092"
+    # bootstrap_servers: list[str] = ["localhost:9092", "localhost:9094", "localhost:9095"]
+    bootstrap_servers: str
     group_id: str = "foo"
     auto_offset_reset: str = "smallest"
 
@@ -31,7 +32,8 @@ class KafkaConsumerProperties(BaseModel):
 
 
 class KafkaProducerProperties(BaseModel):
-    bootstrap_servers: str = "localhost:9092"
+    bootstrap_servers: str = "localhost:9092,localhost:9094,localhost:9095"
+    # bootstrap_servers: str = "0.0.0.0:9092,0.0.0.0:9094,0.0.0.0:9095"
     retries: int = 2147483647
     max_in_flight_requests_per_connection: int = 1
     acks: str = "all"

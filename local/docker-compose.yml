@@ -1,57 +1,103 @@
----
+networks:
+  kafka_network:
+    driver: bridge
+
 services:
-
-# TODO: try to create topic with 3 brokesrs (replicas + partitions)
-# See: https://stackoverflow.com/questions/75562702/kafka-3-4-with-kraft-without-zookeeper-with-3-brokers
-
-  # (1) Kafka Broker Service
-  broker:
-    image: confluentinc/cp-kafka:7.6.1
-    hostname: broker
-    container_name: broker
+  kafka-broker-1:
+    image: confluentinc/cp-kafka:latest
+    container_name: kafka-broker-1
+    # network_mode: "host"
+    networks:
+      - kafka_network
+    environment:
+      KAFKA_BROKER_ID: 1
+      CLUSTER_ID: "6hvjsELATxiPPpB0lrg5KA"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://kafka-broker-1:9092,CONTROLLER://kafka-broker-1:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-broker-1:9092
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-broker-1:9093,2@kafka-broker-2:9093,3@kafka-broker-3:9093
+      # KAFKA_LISTENERS: PLAINTEXT://localhost:9092,CONTROLLER://localhost:9093
+      # KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      # KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      # KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093,2@localhost:19093,3@localhost:29093
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_NODE_ID: 1
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false'
     ports:
       - "9092:9092"
-      - "9101:9101"
+    volumes:
+      - kafka_broker1_data:/var/lib/kafka/data
+
+  kafka-broker-2:
+    image: confluentinc/cp-kafka:latest
+    container_name: kafka-broker-2
+    # network_mode: "host"
+    networks:
+      - kafka_network
     environment:
-      KAFKA_NODE_ID: 1
-      KAFKA_BROKER_ID: 1
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT'
-      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://broker:29092,PLAINTEXT_HOST://localhost:9092'
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_JMX_PORT: 9101
-      KAFKA_JMX_HOSTNAME: localhost
-      KAFKA_PROCESS_ROLES: 'broker,controller'
-      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@broker:29093'
-      KAFKA_LISTENERS: 'PLAINTEXT://broker:29092,CONTROLLER://broker:29093,PLAINTEXT_HOST://0.0.0.0:9092'
-      KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
-      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
-      KAFKA_LOG_DIRS: '/tmp/kraft-combined-logs'
-      # Replace CLUSTER_ID with a unique base64 UUID using "bin/kafka-storage.sh random-uuid" 
-      # See https://docs.confluent.io/kafka/operations-tools/kafka-tools.html#kafka-storage-sh
-      CLUSTER_ID: 'MkU3OEVBNTcwNTJENDM2Qk'
+      KAFKA_BROKER_ID: 2
+      CLUSTER_ID: "6hvjsELATxiPPpB0lrg5KA"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://kafka-broker-2:9094,CONTROLLER://kafka-broker-2:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-broker-2:9094
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-broker-1:9093,2@kafka-broker-2:9093,3@kafka-broker-3:9093
+      # KAFKA_LISTENERS: PLAINTEXT://localhost:9094,CONTROLLER://localhost:19093
+      # KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9094,CONTROLLER://0.0.0.0:19093
+      # KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9094
+      # KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093,2@localhost:19093,3@localhost:29093
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_NODE_ID: 2
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false'
+    ports:
+      - "9094:9094"
+    volumes:
+      - kafka_broker2_data:/var/lib/kafka/data
+
+  kafka-broker-3:
+    image: confluentinc/cp-kafka:latest
+    container_name: kafka-broker-3
+    # network_mode: "host"
+    networks:
+      - kafka_network
+    environment:
+      KAFKA_BROKER_ID: 3
+      CLUSTER_ID: "6hvjsELATxiPPpB0lrg5KA"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://kafka-broker-3:9095,CONTROLLER://kafka-broker-3:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-broker-3:9095
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-broker-1:9093,2@kafka-broker-2:9093,3@kafka-broker-3:9093
+      # KAFKA_LISTENERS: PLAINTEXT://localhost:9095,CONTROLLER://localhost:29093
+      # KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9095,CONTROLLER://0.0.0.0:29093
+      # KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9095
+      # KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093,2@localhost:19093,3@localhost:29093
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_NODE_ID: 3
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false'
+    ports:
+      - "9095:9095"
+    volumes:
+      - kafka_broker3_data:/var/lib/kafka/data
+  
 
   # (2) Kafka Initialization Service
   init-kafka:
-    image: confluentinc/cp-kafka:7.6.1
+    image: confluentinc/cp-kafka:latest
+    # network_mode: "host"
     depends_on:
-      - broker
-    entrypoint: [ '/bin/sh', '-c' ]
-    command: |
-      "
-      set -e 
-
-      # blocks until kafka is reachable
-      kafka-topics --bootstrap-server broker:29092 --list
-
-      echo -e 'Creating kafka topics'
-      kafka-topics --bootstrap-server broker:29092 --create --if-not-exists --topic event-messages --replication-factor 1 --partitions 1
-
-      echo -e 'Successfully created the following topics:'
-      kafka-topics --bootstrap-server broker:29092 --list
-      "
+      - kafka-broker-1
+      - kafka-broker-2
+      - kafka-broker-3
+    networks:
+      - kafka_network
+    volumes:
+      - ./init-kafka.sh:/usr/bin/init-kafka.sh
+    entrypoint: /bin/sh -c "/usr/bin/init-kafka.sh"
 
   # (3) MinIO Service
   minio:
@@ -74,3 +120,6 @@ services:
 volumes:
   minio-data:
   minio-config:
+  kafka_broker1_data:
+  kafka_broker2_data:
+  kafka_broker3_data:
