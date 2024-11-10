@@ -75,7 +75,7 @@ clean-prometheus-dir: ## Clean Prometheus multiprocess directory, if exists.
 	rm -rf $(PROMETHEUS_MULTIPROC_DIR)/*
 
 .PHONY: tests
-tests: clean-prometheus-dir ## Run tests.
+tests: ## Run tests.
 	printf "Tests with Pytest\n"
 ifeq (plain, $(filter plain,$(MAKECMDGOALS)))
 	pytest tests -s
@@ -88,23 +88,23 @@ battery: style-check static-check tests ## Run all checks and tests
 	printf "\nPassed all checks and tests...\n"
 
 .PHONY: run.api
-run.api: clean-prometheus-dir ## Run service with dev configuration.
+run.api: ## Run service with dev configuration.
 ifeq (plain, $(filter plain,$(MAKECMDGOALS)))
-	python serve.py
+	python serve/serve_api.py
 else
-	poetry run python serve.py
+	poetry run python serve/serve_api.py
 endif
 
 .PHONY: run.consumer
-run.consumer: clean-prometheus-dir ## Run service with dev configuration.
+run.consumer: ## Run service with dev configuration.
 ifeq (plain, $(filter plain,$(MAKECMDGOALS)))
-	python consumer/consumer.py
+	python serve/serve_consumer.py
 else
-	poetry run python consumer/consumer.py
+	poetry run python serve/serve_consumer.py
 endif
 
 .PHONY: run.producer
-run.producer: clean-prometheus-dir ## Run service with dev configuration.
+run.producer: ## Run service with dev configuration.
 ifeq (plain, $(filter plain,$(MAKECMDGOALS)))
 	python api/producer.py
 else
@@ -118,3 +118,7 @@ ifeq (plain, $(filter plain,$(MAKECMDGOALS)))
 else
 	poetry run $(SHELL) proto_generate.sh
 endif
+
+.PHONY: requirements
+requirements: ## Generate requirements.txt based on poetry env.
+	poetry export -f requirements.txt --output requirements.txt --without-hashes --with dev

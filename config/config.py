@@ -2,7 +2,7 @@ import os
 import tomllib
 from functools import lru_cache
 
-from pydantic import BaseModel, ConfigDict 
+from pydantic import AliasGenerator, BaseModel, ConfigDict 
 from pydantic_settings import BaseSettings
 
 
@@ -23,27 +23,34 @@ def underscore_to_dot(string: str) -> str:
 
 # TODO: To figure out which properties should be here
 class KafkaConsumerProperties(BaseModel):
-    # bootstrap_servers: list[str] = ["localhost:9092", "localhost:9094", "localhost:9095"]
     bootstrap_servers: str
-    group_id: str = "foo"
-    auto_offset_reset: str = "smallest"
+    group_id: str 
+    auto_offset_reset: str 
+    partition_assignment_strategy: str
 
-    model_config = ConfigDict(alias_generator=underscore_to_dot)
+    model_config = ConfigDict(
+        alias_generator=AliasGenerator(
+            serialization_alias=underscore_to_dot,
+        )
+    )
 
 
 class KafkaProducerProperties(BaseModel):
-    bootstrap_servers: str = "localhost:9092,localhost:9094,localhost:9095"
-    # bootstrap_servers: str = "0.0.0.0:9092,0.0.0.0:9094,0.0.0.0:9095"
-    retries: int = 2147483647
-    max_in_flight_requests_per_connection: int = 1
-    acks: str = "all"
-    batch_size: int = 16384
-    enable_idempotence: bool = True
-    delivery_timeout_ms: int = 120000
-    linger_ms: int = 5
-    request_timeout_ms: int = 30000
+    bootstrap_servers: str
+    retries: int
+    max_in_flight_requests_per_connection: int 
+    acks: str
+    batch_size: int 
+    enable_idempotence: bool 
+    delivery_timeout_ms: int
+    linger_ms: int
+    request_timeout_ms: int
 
-    model_config = ConfigDict(alias_generator=underscore_to_dot)
+    model_config = ConfigDict(
+        alias_generator=AliasGenerator(
+            serialization_alias=underscore_to_dot,
+        )
+    )
 
 
 class ConfigParser:

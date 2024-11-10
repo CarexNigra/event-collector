@@ -31,8 +31,6 @@ def get_events_mapping(folder_path):
 
             for k in d:
                 events_mapping[d[k].__name__] = d[k]
-                logger.info(d[k].DESCRIPTOR.GetOptions())
-
         except ImportError as e:
             logger.info(f"Error importing module {module_name}: {e}")
 

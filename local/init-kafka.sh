@@ -1,6 +1,6 @@
 #!/bin/sh
 
-KAFKA_BROKER_LIST="localhost:9092,localhost:9094,localhost:9095"
+KAFKA_BROKER_LIST="kafka-broker-1:9092,kafka-broker-2:9094,kafka-broker-3:9095"
 
 echo "Waiting for Kafka brokers to be reachable..."
 for i in {1..10}; do
