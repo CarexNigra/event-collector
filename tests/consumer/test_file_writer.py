@@ -1,11 +1,12 @@
 import json
 import os
 import uuid
+from typing import Callable
 
 from consumer.file_writers import LocalFileWriter, MinioFileWriter, create_bucket, create_minio_client
 
 
-def test_local_file_writing(batch_of_events_mock):  # , clean_up_temp):
+def test_local_file_writing(batch_of_events_mock, clean_up_temp: Callable):
     # (1) Define configs
     test_configs = {
         "save_to_path": "/tmp",

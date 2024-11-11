@@ -10,13 +10,13 @@ from events_registry.events_registry import events_mapping
 def is_valid_date(datetime_to_check_int: int, datetime_field_name: str = "sent_at") -> tuple[bool, str | None]:
     """
     Validates if a given timestamp is in the past and later than January 1, 1970.
-    
+
     Input:
         datetime_to_check_int (int): The timestamp to validate in Unix time format.
         datetime_field_name (str): The name of the field being validated (default: "sent_at").
 
     Output:
-        tuple[bool, str | None]: A tuple with a boolean indicating validity and an 
+        tuple[bool, str | None]: A tuple with a boolean indicating validity and an
         optional error message if the timestamp is invalid.
     """
 
@@ -63,7 +63,7 @@ class RequestEventContext(BaseModel):
 
     @field_validator("message_id")
     def message_id_check(cls, v: str) -> str:
-        """ 
+        """
         Ensures message_id is a valid UUID
         """
         try:
@@ -94,7 +94,6 @@ class RequestEventItem(BaseModel):
         context (RequestEventContext): Contextual information about the event, including 
                                     timestamps and identifiers.
         data (dict): Additional data associated with the event.
-
     """
 
     @field_validator("event_name")
@@ -102,7 +101,7 @@ class RequestEventItem(BaseModel):
         """
         Checks if the event name is valid and exists in events_mapping
 
-        Output:
+        Raises:
             HTTPException: Raised if `event_name` is not supported.
         """
         event_names = list(events_mapping.keys())

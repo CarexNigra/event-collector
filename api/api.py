@@ -24,15 +24,15 @@ async def store_event(
     """
     Endpoint to receive and store an event in Kafka.
     This endpoint handles event submission, processes the event data, and
-    publishes it to a specified Kafka topic. 
+    publishes it to a specified Kafka topic.
 
-    Input:
+    Args:
         request (Request): The FastAPI request object.
         response (Response): The FastAPI response object for setting the status code.
         event_item (RequestEventItem): The event data to be processed and published.
         kafka_producer: Kafka producer dependency.
         config: Configuration dependency for accessing general properties.
-    Output:
+    Raises:
         HTTPException: If the content type is unsupported, or the event name is unknown.
         415 error if the content type is not supported
         204 if successful event publishing

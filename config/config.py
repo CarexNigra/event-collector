@@ -90,6 +90,7 @@ class ConfigParser:
     """
     Class responsible for loading and parsing the configuration file.
     """
+
     def __init__(self, path_to_config_toml: str) -> None:
         """
         Initializes the ConfigParser with the path to the TOML configuration file.

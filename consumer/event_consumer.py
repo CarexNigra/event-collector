@@ -23,10 +23,10 @@ logger = get_logger()
 def create_kafka_consumer(config: Optional[dict[str, Any]] = None) -> Consumer:
     """
     Creates a Kafka Consumer instance with a specified or default configuration.
-    Input:
-        config (Optional[dict[str, Any]]): Kafka consumer configuration. 
+    Args:
+        config (Optional[dict[str, Any]]): Kafka consumer configuration.
                                            If None, the default configuration is used.
-    Output:
+    Returns:
         Consumer: The configured Kafka consumer instance.
     """
     if not config:
@@ -47,9 +47,9 @@ def parse_message(message: Message) -> dict[str, Any]:
     """
     Parses a message from Kafka to extract its event data.
 
-    Input:
+    Args:
         message (Message): The Kafka message to parse (binary).
-    Output:
+    Returns:
         dict[str, Any]: Parsed message data in dictionary format.
     """
     key = message.key()
@@ -95,29 +95,29 @@ class EventConsumer:
         """
         Class representing a Kafka consumer that consumes events and writes them to storage.
 
-        Input:
+        Args:
             file_writer (FileWriterBase): Writer used for saving events to storage.
             consumer (Consumer): Kafka consumer instance for consuming messages.
             consumer_group_id (str): ID for the Kafka consumer group.
             topics (List[str]): List of topics to subscribe to.
             max_output_file_size (int): Maximum file size (with messages batch) in bytes before flushing to storage.
-            flush_interval (int): Time interval in seconds to flush messages to storage 
+            flush_interval (int): Time interval in seconds to flush messages to storage
                 (even if max_output_file_size is not reached)
         Attributes:
             _message_queue (List[str]): In-memory queue for holding messages (deseiralized to str).
             _last_flush_time (datetime): Timestamp of the last message flush.
             _running (bool): Flag to control the message consumption loop.
-            _unique_consumer_id (str): Unique identifier for the consumer instance. Needed to be added 
+            _unique_consumer_id (str): Unique identifier for the consumer instance. Needed to be added
                 to the file name (to force different consumers' writing to different files)
         """
         self._file_writer = file_writer
         self._consumer = consumer
         self._topics = topics
-        self._max_output_file_size = (max_output_file_size)
+        self._max_output_file_size = max_output_file_size
         self._flush_interval = timedelta(seconds=flush_interval)
-        self._message_queue: list[str] = []  
+        self._message_queue: list[str] = []
         self._last_flush_time = datetime.now()
-        self._running = True  
+        self._running = True
 
         consumer_id = consumer.memberid()
         if not consumer_group_id or not consumer_id:
@@ -129,21 +129,21 @@ class EventConsumer:
         """
         Stops the consumer's event consumption loop and flush remaining messages.
         """
-        self._running = False  
-        self._flush_messages()  
+        self._running = False
+        self._flush_messages()
 
     def _flush_messages(self) -> None:
         """
         Flushes the in-memory message queue to storage and commit offsets in Kafka.
         """
         logger.info(f"(3) Flushing {len(self._message_queue)} parsed messages.")
-        self._file_writer.write_file(self._message_queue, self._unique_consumer_id)  
+        self._file_writer.write_file(self._message_queue, self._unique_consumer_id)
         self._consumer.commit(asynchronous=True)  # Commit offsets after writing
         self._message_queue = []
 
     def run_consume_loop(self) -> None:
         """
-        Starts the event consumption loop, process messages, and flush them to storage based on 
+        Starts the event consumption loop, process messages, and flush them to storage based on
         file size or time interval thresholds.
         """
         queue_size_bytes = 0
@@ -200,4 +200,3 @@ class EventConsumer:
             # (7) Close down consumer to commit final offsets.
             self._flush_messages()
             self._consumer.close()
-

@@ -16,17 +16,21 @@ def kafka_producer_mock():
 
 @pytest.fixture(scope="function", autouse=True)
 def reset_mock(kafka_producer_mock):
-    # NB: This function is needed to reset kafka producer
-    # Otherwise within session the fact that kafka_producer_mock was
-    # called for the first test, would give asser error in subsequent tests
-    # This function is called automatically after each call of the kafka_producer_mock
-    # Which is called once per test function.
+    """
+    NOTE: This function is needed to reset kafka producer
+    Otherwise within session the fact that kafka_producer_mock was
+    called for the first test, would give asser error in subsequent tests
+    This function is called automatically after each call of the kafka_producer_mock
+    Which is called once per test function.
+    """
     yield
     kafka_producer_mock.reset_mock()
 
 
 @pytest.fixture(scope="session")
 def client(kafka_producer_mock):
+    """
+    NOTE: lambda is needed to return function. without it it will return object
+    """
     app.dependency_overrides[create_kafka_producer] = lambda: kafka_producer_mock
-    # NB: lambda is needed to return function. without it it will return object
     yield TestClient(app)

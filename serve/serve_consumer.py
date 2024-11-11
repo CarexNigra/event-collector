@@ -6,7 +6,7 @@ from consumer.file_writers import MinioFileWriter, create_bucket, create_minio_c
 general_config_dict = get_config()["general"]
 consumer_config_dict = get_config()["consumer"]
 
-# Instantiate Minio file writer
+# (2) Instantiate Minio file writer
 minio_client = create_minio_client()
 create_bucket(general_config_dict["root_path"], minio_client)
 file_writer = MinioFileWriter(

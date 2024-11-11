@@ -19,11 +19,11 @@ logger = get_logger()
 # (1) Create event instance and populate it with data
 @pytest.fixture(scope="session")
 def event_mock() -> Callable[[], dict[str, Any]]:
-    # Initial Unix timestamp
+    # (1) Set initial Unix timestamp
     base_timestamp = [1701530942]  # Using a list to make the timestamp mutable for each test event
 
     def create_event() -> dict[str, Any]:
-        # Increment the base timestamp by 1 second on each call
+        # (2) Increment the base timestamp by 1 second on each call
         base_timestamp[0] += 1
 
         event_class = events_mapping.get("TestEvent")
@@ -51,6 +51,7 @@ def event_mock() -> Callable[[], dict[str, Any]]:
     return create_event
 
 
+# (2) Create batch of events
 @pytest.fixture(scope="session")
 def batch_of_events_mock(event_mock: Callable[[], dict[str, Any]], number_of_messages_in_batch: int = 25) -> list[str]:
     batch = []
@@ -66,7 +67,7 @@ def batch_of_events_mock(event_mock: Callable[[], dict[str, Any]], number_of_mes
     return batch
 
 
-# (2) Create consumer mock
+# (3) Create consumer mock
 @pytest.fixture(scope="session")
 def kafka_consumer_mock(event_mock: Callable[[], dict[str, Any]]) -> Generator[MagicMock, None, None]:
     def poll(timeout: float = 1.0):
@@ -87,11 +88,13 @@ def kafka_consumer_mock(event_mock: Callable[[], dict[str, Any]]) -> Generator[M
     yield mock
 
 
-# (3) Clean temp folder from consumer output folder created during testing
+# (4) Clean temp folder from consumer output folder created during testing
 @pytest.fixture(scope="function")
 def clean_up_temp() -> Generator:
+    """
+    NOTE: if yield is before command, it means that test function that receives
+    clean_up_temp as argument, first runs, than launches clean_up_temp running
+    in our case it is "test_consumption" function
+    """
     yield
-    # NB: if yield is before command, it means that test function that receives
-    # clean_up_temp as argument, first runs, than launches clean_up_temp running
-    # in our case it is "test_consumption" function
     os.system("rm -rf /tmp/consumer_test_*")
