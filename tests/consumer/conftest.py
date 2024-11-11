@@ -9,6 +9,7 @@ import pytest
 from google.protobuf.json_format import MessageToJson
 
 from common.logger import get_logger
+from consumer.file_writers import FileWriterBase
 from events.context_pb2 import EventContext
 from events_registry.events_registry import events_mapping
 from events_registry.key_manager import ProducerKeyManager
@@ -88,7 +89,55 @@ def kafka_consumer_mock(event_mock: Callable[[], dict[str, Any]]) -> Generator[M
     yield mock
 
 
-# (4) Clean temp folder from consumer output folder created during testing
+# (4) Create file writer mock
+@pytest.fixture(scope="session")
+def local_file_writer():
+    """
+    A fixture that provides an instance of LocalFileWriter for saving messages to local storage in dev environment.
+
+    Returns:
+        LocalFileWriter: An instance of LocalFileWriter configured with the specified root path.
+    """
+
+    class LocalFileWriter(FileWriterBase):
+        def __init__(self, root_path) -> None:
+            self._root_path = root_path
+
+        def get_full_path(self, messages: list[str], unique_consumer_id: str) -> str:
+            first_message = messages[0]
+            date_dict = self.parse_received_at_date(first_message)
+
+            # (1) Check if the subfolder exists in the consumer_output folder
+            folder_path = os.path.join(
+                self._root_path, date_dict["year"], date_dict["month"], date_dict["day"], date_dict["hour"]
+            )
+
+            # (2) Create the folder if it doesn't exist
+            if not os.path.exists(folder_path):
+                os.makedirs(folder_path, exist_ok=True)
+
+            # (3) Create file path
+            file_path = self.create_file_path(folder_path, date_dict, unique_consumer_id)
+
+            return file_path
+
+        def write_file(self, messages: list[str], unique_consumer_id: str) -> None:
+            if not messages:
+                return
+
+            file_path = self.get_full_path(messages, unique_consumer_id)
+            if file_path is None:
+                return
+
+            with open(file_path, "w") as json_file:
+                for m in messages:
+                    json_file.write(m + "\n")
+            logger.info(f"(4) Saving. JSON file saved to: {file_path}")
+
+    return LocalFileWriter
+
+
+# (5) Clean temp folder from consumer output folder created during testing
 @pytest.fixture(scope="function")
 def clean_up_temp() -> Generator:
     """

@@ -7,10 +7,9 @@ from typing import Any, Callable
 from unittest.mock import MagicMock
 
 from consumer.event_consumer import EventConsumer
-from consumer.file_writers import LocalFileWriter
 
 
-def test_consumption(kafka_consumer_mock: MagicMock, clean_up_temp: Callable):
+def test_consumption(kafka_consumer_mock: MagicMock, local_file_writer, clean_up_temp: Callable):
     # (1) Mock config and define temp folder
     general_config_dict: dict[str, Any] = {
         "kafka_topic": "event-messages",
@@ -25,7 +24,7 @@ def test_consumption(kafka_consumer_mock: MagicMock, clean_up_temp: Callable):
     temp_folder_uuid = "consumer_test_" + str(uuid.uuid4())
 
     # (2) Instantiate local file writer
-    file_writer = LocalFileWriter(
+    file_writer = local_file_writer(
         root_path=general_config_dict["root_path"] + f"/{temp_folder_uuid}",
     )
 
