@@ -60,7 +60,7 @@ style-check: ## Run style checks.
 .PHONY: restyle
 restyle: ## Reformat code with Ruff and Black.
 	poetry run ruff format .
-	poetry run ruff check . --fix
+	poetry run ruff check . --fix .
 
 .PHONY: static-check
 static-check: ## Run strict typing checks.

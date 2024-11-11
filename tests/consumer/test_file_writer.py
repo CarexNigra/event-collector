@@ -3,6 +3,8 @@ import os
 import uuid
 from typing import Callable
 
+from pytest_minio_mock.plugin import minio_mock  # type: ignore  # noqa: F401
+
 from consumer.file_writers import LocalFileWriter, MinioFileWriter, create_bucket, create_minio_client
 
 
@@ -34,7 +36,7 @@ def test_local_file_writing(batch_of_events_mock, clean_up_temp: Callable):
     assert os.path.exists(file_path)
 
 
-def test_minio_writing(batch_of_events_mock, minio_mock):
+def test_minio_writing(batch_of_events_mock, minio_mock):  # noqa: F811
     # (1) Define configs
     test_configs = {
         "save_to_path": "consumed-events",

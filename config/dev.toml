@@ -1,7 +1,6 @@
 [general]
 kafka_topic = 'event-messages' 
-root_path = './consumer_output'
-consumer_batch_size = 10
+root_path = 'consumed-events'
 flush_interval = 8 # Seconds
 max_output_file_size = 4194304 # 4Mb in bytes
 

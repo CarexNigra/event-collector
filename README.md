@@ -1,108 +1,140 @@
-# event-collector  
+# Event Collector  
 
-### Build and run  
+The `event-collector` is an application designed to manage event-driven data in distributed systems. Built to leverage Kafka and MinIO, this service handles both the production and consumption of event data, providing a structured way to ingest, process, and store information. The application is structured with modular components that enable event generation, serialization, Kafka integration, and storage.
 
-To activate certain python `.venv` in vscode (to make code highlighting work) - add interpreter path starting from the project's root, like that:  
-```shell
-./api/.venv/bin/python
-```  
-
-*TODO:*
-
-
-
-### How to set up kafka producer locally
-0. Run docker
-* Create docker-compose.yml (example: https://github.com/confluentinc/cp-all-in-one/blob/7.6.1-post/cp-all-in-one-kraft/docker-compose.yml)
-* in terminal go to the folder with this file and run following command to create a container: docker-compose up -d
-* (to close: docker-compose down)
- 
-1. Create kafka topic manually
-* In terminal: docker ps 
-* in the output get docker id (first sting)
-* go to docker: docker exec -it <docker_id> bash
-* find kafka-topic file on brocker: ls -ls /bin/ | grep kafka-topics
-* create topic in the file: kafka-topics --bootstrap-server localhost:9092 --create --topic event-messages --partitions 3
-* list all topics: kafka-topics --bootstrap-server localhost:9092 --list
-* since topics are removed after we stop the docker, we need to encode it in docker-compose.yaml with the number of partitions and replicas. This is done by spinning an additional container init-kafka that runs a defined script (see docker-compose.yaml)
+**Key features:** 
+* Event Production: Handles the creation and publication of events to Kafka topics using a FastAPI endpoint (/store). Each event includes a context and data payload, which are validated and serialized using `protobuf` before being sent to specific Kafka partitions with a producer key, facilitating consistent partitioning.
+* Event Consumption: Subscribes to Kafka topics and consumes events, deserializes them, and processes the data for storage. The consumer manages an in-memory message queue with defined thresholds (batch size or time interval) to efficiently batch and write data.
+* Configurable Storage: Supports storage to MinIO. The FileWriterBase class provides a flexible interface for storing data to different backends based on configuration. The MinioFileWriter class implements this base class, allowing data to be stored in MinIO.
+* Modular Design: Includes separate classes and functions for configuration parsing, Kafka management, file storage handling, and message parsing, promoting scalability and modularity.
+* Flexible Configuration: Configurable via TOML files, allowing for customized Kafka and MinIO settings, such as batch sizes, flush intervals, and retry limits.
 
 
-2. Create a simple kafka consumer in docker (we need to see all messages sent to kafka somewhere. The easiest way is to create a consumer with printing function)
-* As an alternative it was decided to view kafka messages using following commands
-* In terminal: docker ps 
-* in the output get docker id (first sting)
-* go docker: docker exec -it <docker_id> bash
-* find kafka-topic file on brocker: ls -ls /bin/ | grep kafka-console-consumer
-* run: kafka-console-consumer --bootstrap-server localhost:9092 --topic event-messages --from-beginning
-* There will be a message printed here, after we run 3.
+## Table of Contents
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Usage](#usage)
+- [Key Components](#key-components)
+- [Testing](#testing)
+- [License](#license)
 
 
-3. Launch api server and send test request with an event to it
-* go to api folder (where Makefile is located): make run
-* go to the separate terminal, send test event to api
-```shell
-curl -v -X POST -H "Content-Type: application/json" 'http://localhost:5000/store' -d '{"event_name": "TestEvent", "context": {"sent_at": 1701530942, "received_at": 1701530942, "processed_at": 1701530942, "message_id": "36eca638-4c0f-4d11-bc9b-cc2290851032", "user_agent": "some_user_agent"}, "data": {"user_id": "example_user_id", "account_id": "example_account_id", "user_role": "OWNER"}}'
-```  
+## Installation
+**Prerequisites:** 
+* Python version 3.11
+* Poetry version 1.8.3
+* [Docker Desktop](https://docs.docker.com/desktop/) installed
 
-4. Check that event ends up in the consumer logs
-* In the terminal with kafka-console-consume (see in 2. above) there will be a message we just sent printed out
-* In the terminal with the app running, there will be following message printed out '127.0.0.1:51296 - "POST /store HTTP/1.1" 204 No Content'
-
-# How to set up path to config file
-* Define environment name in terminal as follows: os.environ["ENVIRONMENT"] = <env_var_string>
-* <env_var_string> can be either "dev", or "stage", or "prod"
-* this value will be passed to `environmnet_type` variable of `get_config_path` function and used to construct path to config file
-
-# How to run the full service on docker (when everything is already set up)
-0. Run docker 
-* (install docker desktop, if not yet installed)
-* In terminal go to the folder with `docker-compose.yml` file (in our case ../local)
-* Run following command to create a container: `docker-compose up --build` (this builds and deploys api, consumer and kafka on docker)
-
-1. View consumed kafka messages using following setup
-* Open another terminal session
-* Run `docker ps`
-* In the output get docker `<container_id>` (first sting) with the service you are interested to check (e.g. local-consumer-app to test end-to-end)
-* stream logs for this service `docker logs -f <container_id>`
-
-2. Send test request with an event to it
-* Open another terminal session
-* Send test event to api
-```shell
-curl -v -X POST -H "Content-Type: application/json" 'http://localhost:5000/store' -d '{"event_name": "TestEvent", "context": {"sent_at": 1701530942, "received_at": 1701530942, "processed_at": 1701530942, "message_id": "36eca638-4c0f-4d11-bc9b-cc2290851032", "user_agent": "some_user_agent"}, "data": {"user_id": "example_user_id", "account_id": "example_account_id", "user_role": "OWNER"}}'
-```  
-
-3. Check that event ends up in the consumer logs
-* In terminal with consumer container (and in Docker Dashboard UI) you will see consumed messages
+**Setup steps**
+* Clone the repository `git clone https://github.com/CarexNigra/event-collector.git`
+* Navigate to the directory `cd event-collector`
+* Install dependencies `poetry install`
 
 
+## Configuration
+There is a dev config file in `config/` folder: `dev.toml`. `stg.toml` and `prod.toml` may be added to this folder if needed. `dev.toml` provides configuration to run the application in docker. It consists of four sections:
+* `general` defines general config for the application: 
+    * `kafka_topic` to send events to / consume events from
+    * `root_path` path to local folder where files with events will be saved 
+    * `flush_interval` the interval (in seconds) for consumed message queue to be flushed to a new file
+    * `max_output_file_size` file size (in bytes) not to be exceeded when flushing messages into a file
+* `producer` defindes Kafka producer config. See the [reference](https://docs.confluent.io/platform/current/installation/configuration/producer-configs.html)
+* `consumer` defindes Kafka consumer config. See the [reference](https://docs.confluent.io/platform/current/installation/configuration/consumer-configs.html)
+* `minio` defines config for MinIO object storage except for credentials. 
 
-# NOTES
-1. Sometimes we need to re-create .venv. For example, if you restructure project and move files and folders around. For this you should only run `make install`
-2. See the content of temp file `ls -la /tmp/`
-
-
-# TO SET UP CREDENTIALS FOR MINIO 
-1. Open your .zshrc file:
-```
-nano ~/.zshrc
-```
+Credentials for MinIO as well as `kafka_topic` matching the topic in `dev.toml` should be added to environment variables as follows:
+1. Open your .zshrc file in terminal: `nano ~/.zshrc`
 2. Add MinIO credentials:
 ```
 export MINIO_ACCESS_KEY="minio_user"
 export MINIO_SECRET_KEY="minio_password"
+export KAFKA_TOPIC="event-messages"
 ```
 3. Save and exit: If you're using nano, press CTRL + X, then Y to confirm, and press Enter to save.
-4. Apply the changes by sourcing the file or restarting your terminal
+4. Apply the changes by sourcing the file or restarting your terminal `source ~/.zshrc`
+
+
+## Usage
+1. Run docker
+    * Install docker desktop, if not yet installed, launch it
+    * In terminal go to the folder with `docker-compose.yml` file (in our case ../local): `cd event_collector/local`
+    * Run following command to create a container: `docker-compose up --build` (this builds and deploys api, consumer, 3 kafka brokers and minIO on docker)
+    * In case of success you will see
 ```
-source ~/.zshrc
+init-kafka-1         | __consumer_offsets
+init-kafka-1         | event-messages
+init-kafka-1 exited with code 0
+```
+And then consumer app will start to print following logs (since no messages are yet sent) 
+```
+consumer-app         | {"level": "INFO", "timestamp": "2024-11-11T21:22:49.345842+00:00", "app": {"name": "event-collector", "releaseId": "undefined", "message": "(1) Consumption. Message: None", "extra": null}}
 ```
 
-# TODO
-3. CI/CD: github workflow: checks and tests
-4. Prometheus metrics
-– for producer
-– for consumer
-5. Readme
-6. Miro board with service map
-7. Blog post
+2. View consumed kafka messages in consumer logs
+    * Open another terminal session
+    * Run `docker ps`
+    * In the output get docker `<container_id>` (first sting) with the service you are interested to check (e.g. local-consumer-app to test end-to-end)
+    * stream logs for this service `docker logs -f <container_id>`
+
+3. Send test request with an event to it
+    * Open another terminal session
+    * Send as many test events to api as you want (worth sending 10-15 to observe batching)
+    ```shell
+    curl -v -X POST -H "Content-Type: application/json" 'http://localhost:5000/store' -d '{"event_name": "TestEvent", "context": {"sent_at": 1701530942, "received_at": 1701530942, "processed_at": 1701530942, "message_id": "36eca638-4c0f-4d11-bc9b-cc2290851032", "user_agent": "some_user_agent"}, "data": {"user_id": "example_user_id", "account_id": "example_account_id", "user_role": "OWNER"}}'
+    ```
+
+4. Check that event ends up in the consumer logs
+    * In terminal with consumer container (and in Docker Dashboard UI) you will see consumed messages. Here is how it should look like
+```
+{"level": "INFO", "timestamp": "2024-11-11T21:15:35.344630+00:00", "app": {"name": "event-collector", "releaseId": "undefined", "message": "(1) Consumption. Message: <cimpl.Message object at 0xffff93a37c40>", "extra": null}}
+{"level": "INFO", "timestamp": "2024-11-11T21:15:35.344995+00:00", "app": {"name": "event-collector", "releaseId": "undefined", "message": "(2) Parsing. Event class data type: <class 'dict'>, data: {'context': {'sentAt': '1701530942', 'receivedAt': '1701530942', 'processedAt': '1701530942', 'messageId': '36eca638-4c0f-4d11-bc9b-cc2290851032', 'userAgent': 'some_user_agent'}, 'userId': 'example_user_id', 'accountId': 'example_account_id', 'userRole': 'OWNER'}", "extra": null}}
+{"level": "INFO", "timestamp": "2024-11-11T21:15:35.919841+00:00", "app": {"name": "event-collector", "releaseId": "undefined", "message": "(1) Consumption. Message: <cimpl.Message object at 0xffff93a37cc0>", "extra": null}}
+{"level": "INFO", "timestamp": "2024-11-11T21:15:35.920253+00:00", "app": {"name": "event-collector", "releaseId": "undefined", "message": "(2) Parsing. Event class data type: <class 'dict'>, data: {'context': {'sentAt': '1701530942', 'receivedAt': '1701530942', 'processedAt': '1701530942', 'messageId': '36eca638-4c0f-4d11-bc9b-cc2290851032', 'userAgent': 'some_user_agent'}, 'userId': 'example_user_id', 'accountId': 'example_account_id', 'userRole': 'OWNER'}", "extra": null}}
+{"level": "INFO", "timestamp": "2024-11-11T21:15:35.920336+00:00", "app": {"name": "event-collector", "releaseId": "undefined", "message": "(3) Flushing 32 parsed messages.", "extra": null}}
+{"level": "INFO", "timestamp": "2024-11-11T21:15:35.925139+00:00", "app": {"name": "event-collector", "releaseId": "undefined", "message": "(4) Saving. JSON file saved to MinIO at: 2023/12/2/15/9670bd8f-2f53-4a01-8041-26662d563bec_1701530942.json", "extra": null}}
+```
+
+## Key Components
+**API**
+The API exposes a `/store` endpoint that allows users to create and send events to Kafka. Each event includes a context and data payload, which are validated and serialized using `protobuf` before being sent.
+
+**Kafka Producer**
+The producer component is responsible for generating and sending events to Kafka. Using the `ProducerKeyManager`, events are keyed to ensure partitioning consistency.
+
+**Kafka Consumer** 
+The consumer component subscribes to Kafka topics and processes incoming events. Events are deserialized and queued, then flushed to storage when specified thresholds (batch size or time interval) are met. This component ensures efficient handling and storage of high-throughput data.
+
+**File Storage (MinIO and Local)**
+The `FileWriterBase` class provides a flexible interface allowing data to be stored in different backends based on configuration. `MinioFileWriter` class implements this base class,
+
+
+## Testing
+* Static + style checks, and tests: `make battery`
+* Static checks `make static-check`
+* Style checks `make style-check` and `make restyle`
+* Tests `make tests`
+
+## Next steps
+Add Prometheus metrics
+
+## License
+MIT License
+Copyright (c) [2024] [@CarexNigra]
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

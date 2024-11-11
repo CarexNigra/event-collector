@@ -49,7 +49,7 @@ class ExtraLogger(logging.Logger):
             lno (int): The line number in the source file where the logging call was made.
             msg (object): The log message.
             args (Union[Tuple[object, ...], Mapping[str, object]]): Arguments for the log message.
-            exc_info (Union[Tuple[Type[BaseException], BaseException, Optional[TracebackType]], 
+            exc_info (Union[Tuple[Type[BaseException], BaseException, Optional[TracebackType]],
                 Tuple[None, None, None]]): Exception information for logging.
             func (Optional[str]): The function name where the logging call was made.
             extra (Optional[Mapping[str, object]]): Additional context information to attach to the log record.
