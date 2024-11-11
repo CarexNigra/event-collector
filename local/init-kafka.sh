@@ -9,7 +9,7 @@ done
 
 echo "Creating Kafka topics"
 kafka-topics --bootstrap-server "$KAFKA_BROKER_LIST" \
-  --create --if-not-exists --topic '${KAFKA_TOPIC}' --replication-factor 3 --partitions 3
+  --create --if-not-exists --topic "${KAFKA_TOPIC}" --replication-factor 3 --partitions 3
 
 echo "Successfully created the following topics:"
 kafka-topics --bootstrap-server "$KAFKA_BROKER_LIST" --list
