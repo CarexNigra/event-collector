@@ -130,66 +130,6 @@ class FileWriterBase(abc.ABC):
         pass
 
 
-class LocalFileWriter(FileWriterBase):
-    """
-    A file writer that saves messages to local storage in dev environment.
-
-    Args:
-        root_path (str): The root path where files should be saved.
-    """
-
-    def __init__(self, root_path) -> None:
-        self._root_path = root_path
-
-    def get_full_path(self, messages: list[str], unique_consumer_id: str) -> str:
-        """
-        Generates the full path for the file based on first message recieved_at date and root path.
-
-        Args:
-            messages (list[str]): List of messages.
-            unique_consumer_id (str): Unique identifier for the consumer. Needed to be added
-                to the file name (to force different consumers' writing to different files)
-        Returns:
-            str: Full path for the file.
-        """
-        first_message = messages[0]
-        date_dict = self.parse_received_at_date(first_message)
-
-        # (1) Check if the subfolder exists in the consumer_output folder
-        folder_path = os.path.join(
-            self._root_path, date_dict["year"], date_dict["month"], date_dict["day"], date_dict["hour"]
-        )
-
-        # (2) Create the folder if it doesn't exist
-        if not os.path.exists(folder_path):
-            os.makedirs(folder_path, exist_ok=True)
-
-        # (3) Create file path
-        file_path = self.create_file_path(folder_path, date_dict, unique_consumer_id)
-
-        return file_path
-
-    def write_file(self, messages: list[str], unique_consumer_id: str) -> None:
-        """
-        Writes the provided messages (a batch stored in queue) to a local file.
-
-        Args:
-            messages (list[str]): List of messages to write.
-            unique_consumer_id (str): Unique identifier for the consumer.
-        """
-        if not messages:
-            return
-
-        file_path = self.get_full_path(messages, unique_consumer_id)
-        if file_path is None:
-            return
-
-        with open(file_path, "w") as json_file:
-            for m in messages:
-                json_file.write(m + "\n")
-        logger.info(f"(4) Saving. JSON file saved to: {file_path}")
-
-
 class MinioFileWriter(FileWriterBase):
     """
     A file writer that saves messages to MinIO storage.
