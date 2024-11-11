@@ -16,7 +16,7 @@ delivery_timeout_ms = 120000
 linger_ms = 5
 request_timeout_ms = 30000
 
-# TODO: Figure out which configs should be here
+# TODO: Figure out are there aditional configs to be here
 [consumer]
 bootstrap_servers = "kafka-broker-1:9092,kafka-broker-2:9094,kafka-broker-3:9095"
 group_id = 'test_events_consumer_group'

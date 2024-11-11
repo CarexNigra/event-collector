@@ -19,33 +19,61 @@ gunicorn = "^23.0.0"
 pydantic-settings = "^2.6.0"
 
 [tool.poetry.group.dev.dependencies]
-black = "^23.11.0"
-flake8 = "^6.1.0"
-isort = "^5.12.0"
 mypy = "^1.7.0"
 pre-commit = "^3.5.0"
 pytest = "^7.4.3"
-flake8-pyproject = "^1.2.3"
 pytest-minio-mock = "^0.4.16"
 pytest-mock = "^3.14.0"
+ruff = "^0.7.3"
+types-confluent-kafka = "^1.2.2"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
-[tool.flake8]
-max-line-length = 120
-exclude = ".venv"
-per-file-ignores = "events/*" 
-
-[tool.mypy]
-ignore_missing_imports = true
-exclude = "(.venv/*)"
-
-[tool.black]
+[tool.ruff]
+exclude = [
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".venv",
+    "venv",
+    "events",
+    "proto",
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".ipynb_checkpoints",
+    ".nox",
+    ".pants.d",
+    ".pyenv",
+    ".pytype",
+    ".svn",
+    ".tox",
+    ".vscode",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "site-packages",
+]
 line-length = 120
-include = '\.pyi?$'
-exclude = '(.venv/*)'
+indent-width = 4
+target-version = "py311"
 
-[tool.isort]
-profile = "black"
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+fixable = ["ALL"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+docstring-code-format = true
+docstring-code-line-length = "dynamic"

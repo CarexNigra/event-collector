@@ -54,20 +54,18 @@ install: ## Create poetry environment and install all dependencies.
 
 .PHONY: style-check
 style-check: ## Run style checks.
-	printf "Style Checking with Flake8, Black and Isort\n"
-	poetry run black --check .
-	poetry run flake8 .
-	poetry run isort --check-only --diff .
+	printf "Style Checking with Ruff\n"
+	poetry run ruff check .
+
+.PHONY: restyle
+restyle: ## Reformat code with Ruff and Black.
+	poetry run ruff format .
+	poetry run ruff check . --fix
 
 .PHONY: static-check
 static-check: ## Run strict typing checks.
 	printf "Static Checking with Mypy\n"
 	poetry run mypy .
-
-.PHONY: restyle
-restyle: ## Reformat code with black and isort.
-	poetry run black .
-	poetry run isort --atomic .
 
 .PHONY: clean-prometheus-dir
 clean-prometheus-dir: ## Clean Prometheus multiprocess directory, if exists.

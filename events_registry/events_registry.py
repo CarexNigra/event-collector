@@ -6,11 +6,11 @@ from common.logger import get_logger
 
 logger = get_logger()
 
-FOLDER_PATH = "events"  
+FOLDER_PATH = "events"
 # NOTE: can keep it here for now, since events folder doesn't change, and sticks to this repo structure
 
 
-def get_pb2_files_names(folder_path):
+def get_pb2_files_names(folder_path: str) -> list[str]:
     pb2_file_names = []
     for root, _, files in os.walk(folder_path):
         for file in files:
@@ -19,7 +19,7 @@ def get_pb2_files_names(folder_path):
     return pb2_file_names
 
 
-def get_events_mapping(folder_path):
+def get_events_mapping(folder_path: str) -> dict[str, type]:
     pb2_files_names_list = get_pb2_files_names(folder_path)
     events_mapping = {}
 

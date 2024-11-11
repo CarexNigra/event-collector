@@ -1,17 +1,15 @@
-import os
-import abc 
+import abc
 import json
+import os
 from datetime import datetime
-
-from typing import List, Any, Optional
-
 from io import BytesIO
+from typing import Any, Optional
+
 from minio import Minio
 from minio.error import S3Error
 
-from config.config import MinioProperties, get_config
-
 from common.logger import get_logger
+from config.config import MinioProperties, get_config
 
 logger = get_logger()
 
@@ -19,9 +17,10 @@ logger = get_logger()
 # (1) Set up stuff for Minio
 # ==================================== #
 
-def create_minio_client(config: Optional[dict[str, Any]] = None) -> Minio: 
+
+def create_minio_client(config: Optional[dict[str, Any]] = None) -> Minio:
     if not config:
-        config = get_config()['minio']
+        config = get_config()["minio"]
     minio_config = MinioProperties(**config)
 
     logger.info(f"Minio config: {minio_config}, {type(minio_config)}")
@@ -41,14 +40,16 @@ def create_bucket(bucket_name: str, minio_client: Minio) -> None:
     except S3Error as exc:
         logger.info(f"Error occurred: {exc}")
 
+
 # ==================================== #
 # (2) Set up FileWriters
 # ==================================== #
 
+
 class FileWriterBase(abc.ABC):
     # NOTE: This is an abstract class to make file writing env agnostic
-    
-    def parse_received_at_date(self, message):
+
+    def parse_received_at_date(self, message: str) -> dict[str, str]:
         # NOTE: The date is taken from the first message
         msg_decoded = json.loads(message)
         received_at_timestamp = datetime.fromtimestamp(int(msg_decoded["context"]["receivedAt"]))
@@ -60,26 +61,26 @@ class FileWriterBase(abc.ABC):
             "int_timestamp": str(msg_decoded["context"]["receivedAt"]),
         }
         return date_dict
-    
-    def create_file_path(self, folder_path: str, date_dict: dict, unique_consumer_id: str)-> str:
+
+    def create_file_path(self, folder_path: str, date_dict: dict, unique_consumer_id: str) -> str:
         file_name = f"{unique_consumer_id}_{date_dict['int_timestamp']}.json"
         file_path = os.path.join(folder_path, file_name)
         return file_path
 
     @abc.abstractmethod
-    def get_full_path(self, messages: List[dict], unique_consumer_id: str) -> str:
+    def get_full_path(self, messages: list[str], unique_consumer_id: str) -> str:
         pass
 
     @abc.abstractmethod
-    def write_file(self, messages: List[dict], unique_consumer_id: str):
+    def write_file(self, messages: list[str], unique_consumer_id: str):
         pass
 
 
 class LocalFileWriter(FileWriterBase):
-    def __init__(self, root_path): 
+    def __init__(self, root_path) -> None:
         self._root_path = root_path
 
-    def get_full_path(self, messages: List[dict], unique_consumer_id: str) -> str:
+    def get_full_path(self, messages: list[str], unique_consumer_id: str) -> str:
         first_message = messages[0]
         date_dict = self.parse_received_at_date(first_message)
 
@@ -94,15 +95,13 @@ class LocalFileWriter(FileWriterBase):
 
         # (3) Create file path
         file_path = self.create_file_path(folder_path, date_dict, unique_consumer_id)
-        
+
         return file_path
 
-
-    def write_file(self, messages: List[dict], unique_consumer_id: str):
-        
+    def write_file(self, messages: list[str], unique_consumer_id: str) -> None:
         if not messages:
             return
-        
+
         file_path = self.get_full_path(messages, unique_consumer_id)
         if file_path is None:
             return
@@ -114,40 +113,38 @@ class LocalFileWriter(FileWriterBase):
 
 
 class MinioFileWriter(FileWriterBase):
-    def __init__(self, root_path, minio_client): 
-        self._root_path = root_path # = minio bucket_name TODO: should we rename it for comprehensibility?
+    def __init__(self, root_path, minio_client) -> None:
+        self._root_path = root_path  # = minio bucket_name TODO: should we rename it for comprehensibility?
         self._minio_client = minio_client
 
-    def get_full_path(self, messages: List[dict], unique_consumer_id: str):
+    def get_full_path(self, messages: list[str], unique_consumer_id: str) -> str:
         first_message = messages[0]
         date_dict = self.parse_received_at_date(first_message)
 
         # (1) Define folder path
-        folder_path = os.path.join(
-            date_dict["year"], date_dict["month"], date_dict["day"], date_dict["hour"]
-        )
+        folder_path = os.path.join(date_dict["year"], date_dict["month"], date_dict["day"], date_dict["hour"])
 
         # (2) Create file path
         file_path = self.create_file_path(folder_path, date_dict, unique_consumer_id)
 
         return file_path
 
-    def write_file(self, messages: List[dict], unique_consumer_id: str):
+    def write_file(self, messages: list[str], unique_consumer_id: str) -> None:
         if not messages:
             return
-        
+
         # (1) Get path
         file_path = self.get_full_path(messages, unique_consumer_id)
 
-        # Convert updated data back to JSON string
-        json_data = '\n'.join(messages)
+        # (2) Convert updated data back to JSON string
+        json_data = "\n".join(messages)
 
-        # Write the updated data back to MinIO
+        # (3) Write the updated data back to MinIO
         self._minio_client.put_object(
             bucket_name=self._root_path,
             object_name=file_path,
             data=BytesIO(json_data.encode("utf-8")),
             length=len(json_data),
-            content_type="application/json"
+            content_type="application/json",
         )
         logger.info(f"(4) Saving. JSON file saved to MinIO at: {file_path}")

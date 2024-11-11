@@ -4,9 +4,8 @@ from typing import Callable
 from config.config import get_config
 
 
-
 def assert_producer_mock(topic: str, value: str, key: str, on_delivery: Callable):
-    general_config_dict = get_config()['general']
+    general_config_dict = get_config()["general"]
 
     assert topic == general_config_dict["kafka_topic"]
     assert len(value) > 0
