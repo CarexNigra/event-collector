@@ -16,6 +16,7 @@ The `event-collector` is an application designed to manage event-driven data in 
 - [Usage](#usage)
 - [Key Components](#key-components)
 - [Testing](#testing)
+- [Next steps](#next-steps)
 - [License](#license)
 
 
@@ -104,8 +105,8 @@ The producer component is responsible for generating and sending events to Kafka
 **Kafka Consumer** 
 The consumer component subscribes to Kafka topics and processes incoming events. Events are deserialized and queued, then flushed to storage when specified thresholds (batch size or time interval) are met. This component ensures efficient handling and storage of high-throughput data.
 
-**File Storage (MinIO and Local)**
-The `FileWriterBase` class provides a flexible interface allowing data to be stored in different backends based on configuration. `MinioFileWriter` class implements this base class,
+**File Storage**
+The `FileWriterBase` class provides a flexible interface allowing data to be stored in different backends based on configuration. `MinioFileWriter` class implements this base class.
 
 
 ## Testing
