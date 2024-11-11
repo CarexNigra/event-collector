@@ -1,0 +1,10 @@
+*
+!api/
+!consumer/
+!config/
+!common/
+!events/
+!events_registry/
+!Makefile
+!requirements.txt
+!serve/

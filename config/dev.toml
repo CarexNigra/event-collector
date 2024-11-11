@@ -1,0 +1,23 @@
+[general]
+kafka_topic = 'event-messages' 
+root_path = 'consumed-events'
+flush_interval = 8 # Seconds
+max_output_file_size = 4194304 # 4Mb in bytes
+
+[producer]
+bootstrap_servers = "kafka-broker-1:9092,kafka-broker-2:9094,kafka-broker-3:9095"
+retries = 2147483647
+max_in_flight_requests_per_connection = 1 # TODO: To enable retries without reordering
+acks = 'all'
+batch_size = 16384
+enable_idempotence = true # TODO: Best practices for analytics systems, optimize for performance
+delivery_timeout_ms = 120000
+linger_ms = 5
+request_timeout_ms = 30000
+
+# TODO: Figure out are there aditional configs to be here
+[consumer]
+bootstrap_servers = "kafka-broker-1:9092,kafka-broker-2:9094,kafka-broker-3:9095"
+group_id = 'test_events_consumer_group'
+partition_assignment_strategy = 'range'
+auto_offset_reset = 'smallest'

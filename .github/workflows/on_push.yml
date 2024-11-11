@@ -1,4 +1,4 @@
-name: CI eventhub
+name: CI event-collector
 
 on:
   push:
@@ -18,19 +18,14 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Install Poetry
-        run: pip install --upgrade pip && pip install -U poetry==1.6.1 poetry-plugin-export==1.5.0
+        run: pip install --upgrade pip && pip install -U poetry==1.8.3 "poetry-plugin-export>=1.6.0,<2.0.0"
       - name: Set up Python 3.11
         uses: actions/setup-python@v4
         with:
           python-version: 3.11
           cache: poetry
-      - name: Api setup and run tests
-        working-directory: ./api
+      - name: Setup and run tests
+        working-directory: .
         run: |
           poetry install
           make battery
-      - name: Consumer setup and run tests
-        working-directory: ./consumer
-        run: |
-          poetry install
-          # make battery # TODO: uncomment when makefile will be ready
