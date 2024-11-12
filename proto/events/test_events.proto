@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package events;
+
+import "events/context.proto";
+
+import "google/protobuf/descriptor.proto";
+
+extend google.protobuf.MessageOptions {
+   string event_name = 50000;
+ }
+
+
+enum UserRole {
+    OWNER = 0;
+    EDITOR = 1;
+    VIEWER = 2;
+}
+
+enum ObjectType {
+    CARD = 0;
+    STICKY_NOTE = 1;
+    TEXT = 2;
+    IMAGE = 3;
+}
+
+enum InputType {
+    SIMPLE_SELECT = 0;
+    MOVE = 1;
+    ROTATE = 2;
+    SCALE = 3;
+}
+
+// TODO: https://protobuf.dev/programming-guides/proto3/#enum-value-options
+// option (event_name) = "TestEvent";
+message TestEvent {
+    optional EventContext context = 1;
+    // Data fields
+    optional string user_id = 2;
+    optional string account_id = 3;
+    optional UserRole user_role = 4;
+}
+
+// option (event_name) = "YetAnotherTestEvent";
+message YetAnotherTestEvent {
+    optional EventContext context = 1;
+    // Data fields
+    optional InputType input_type = 2;
+    optional string object_id = 3;
+    optional ObjectType object_type = 4;
+}

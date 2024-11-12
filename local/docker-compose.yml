@@ -1,0 +1,150 @@
+# NOTE: If you want to preserve states between runs, you can uncomment volumes. 
+# But it will mess up debugging, since topics and other data will be fetched from there
+
+networks:
+  kafka_network:
+    driver: bridge
+
+services:
+  event-collector-app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: event-collector-app
+    networks:
+      - kafka_network
+    ports:
+      - "5000:5000"
+    depends_on:
+      - kafka-broker-1
+      - kafka-broker-2
+      - kafka-broker-3
+    environment:
+      BOOTSTRAP_SERVERS: "kafka-broker-1:9092,kafka-broker-2:9094,kafka-broker-3:9095"
+    entrypoint: ["make", "run.api", "plain"]
+
+  consumer-app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: consumer-app
+    networks:
+      - kafka_network
+    depends_on:
+      - kafka-broker-1
+      - kafka-broker-2
+      - kafka-broker-3
+    environment:
+      BOOTSTRAP_SERVERS: "kafka-broker-1:9092,kafka-broker-2:9094,kafka-broker-3:9095"
+      ENVIRONMENT: "stg"
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+    entrypoint: ["make", "run.consumer", "plain"]
+
+  kafka-broker-1:
+    image: confluentinc/cp-kafka:latest
+    container_name: kafka-broker-1
+    networks:
+      - kafka_network
+    environment:
+      KAFKA_BROKER_ID: 1
+      CLUSTER_ID: "6hvjsELATxiPPpB0lrg5KA"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://kafka-broker-1:9092,CONTROLLER://kafka-broker-1:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-broker-1:9092
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-broker-1:9093,2@kafka-broker-2:9093,3@kafka-broker-3:9093
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_NODE_ID: 1
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false'
+    ports:
+      - "9092:9092"
+    # volumes:
+    #   - kafka_broker1_data:/var/lib/kafka/data
+
+  kafka-broker-2:
+    image: confluentinc/cp-kafka:latest
+    container_name: kafka-broker-2
+    networks:
+      - kafka_network
+    environment:
+      KAFKA_BROKER_ID: 2
+      CLUSTER_ID: "6hvjsELATxiPPpB0lrg5KA"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://kafka-broker-2:9094,CONTROLLER://kafka-broker-2:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-broker-2:9094
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-broker-1:9093,2@kafka-broker-2:9093,3@kafka-broker-3:9093
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_NODE_ID: 2
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false'
+    ports:
+      - "9094:9094"
+    # volumes:
+    #   - kafka_broker2_data:/var/lib/kafka/data
+
+  kafka-broker-3:
+    image: confluentinc/cp-kafka:latest
+    container_name: kafka-broker-3
+    networks:
+      - kafka_network
+    environment:
+      KAFKA_BROKER_ID: 3
+      CLUSTER_ID: "6hvjsELATxiPPpB0lrg5KA"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://kafka-broker-3:9095,CONTROLLER://kafka-broker-3:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-broker-3:9095
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-broker-1:9093,2@kafka-broker-2:9093,3@kafka-broker-3:9093
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_NODE_ID: 3
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false'
+    ports:
+      - "9095:9095"
+    # volumes:
+    #   - kafka_broker3_data:/var/lib/kafka/data
+  
+
+  # (2) Kafka Initialization Service
+  init-kafka:
+    image: confluentinc/cp-kafka:latest
+    depends_on:
+      - kafka-broker-1
+      - kafka-broker-2
+      - kafka-broker-3
+    networks:
+      - kafka_network
+    environment:
+      KAFKA_TOPIC: "${KAFKA_TOPIC}"
+    volumes:
+      - ./init-kafka.sh:/usr/bin/init-kafka.sh
+    entrypoint: /bin/sh -c "/usr/bin/init-kafka.sh"
+
+  # (3) MinIO Service
+  minio:
+    image: quay.io/minio/minio
+    container_name: minio
+    networks:
+      - kafka_network
+    ports:
+      - 9000:9000
+      - 9001:9001
+    # volumes:
+    #   - minio-data:/data
+    #   - minio-config:/root/.minio
+    environment:
+      MINIO_ROOT_USER: '${MINIO_ACCESS_KEY}'
+      MINIO_ROOT_PASSWORD: '${MINIO_SECRET_KEY}'
+      MINIO_ADDRESS: ':9000'
+      MINIO_CONSOLE_ADDRESS: ':9001'
+    command: server /data --console-address ":9001"
+
+# volumes:
+#   minio-data:
+#   minio-config:
+#   kafka_broker1_data:
+#   kafka_broker2_data:
+#   kafka_broker3_data:
