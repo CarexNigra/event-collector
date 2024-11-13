@@ -21,3 +21,7 @@ bootstrap_servers = "kafka-broker-1:9092,kafka-broker-2:9094,kafka-broker-3:9095
 group_id = 'test_events_consumer_group'
 partition_assignment_strategy = 'range'
 auto_offset_reset = 'smallest'
+
+[minio]
+endpoint = "minio:9000" 
+secure= false 

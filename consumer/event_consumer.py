@@ -1,4 +1,3 @@
-import json
 import traceback
 import uuid
 from datetime import datetime, timedelta
@@ -43,7 +42,7 @@ def create_kafka_consumer(config: Optional[dict[str, Any]] = None) -> Consumer:
 # ==================================== #
 
 
-def parse_message(message: Message) -> dict[str, Any]:
+def parse_message(message: Message) -> str:
     """
     Parses a message from Kafka to extract its event data.
 
@@ -65,16 +64,15 @@ def parse_message(message: Message) -> dict[str, Any]:
         event_class = events_mapping.get(event_type)
         if event_class is None:
             logger.info(f"Event type '{event_type}' not found in events_mapping.")
-            return {}
+            return ''
         else:
             event = event_class()
             event.ParseFromString(binary_value)
             event_json_string = MessageToJson(event)
-            event_json_data = json.loads(event_json_string)
-            logger.info(f"(2) Parsing. Event class data type: {type(event_json_data)}, data: {event_json_data}")
-            return event_json_data
+            logger.info(f"(2) Parsing. Parsed event data type: {type(event_json_string)}, data: {event_json_string}")
+            return event_json_string
     else:
-        return {}
+        return ''
 
 
 # ==================================== #
@@ -112,20 +110,30 @@ class EventConsumer:
         """
         self._file_writer = file_writer
         self._consumer = consumer
+        self._consumer_group_id = consumer_group_id
         self._topics = topics
         self._max_output_file_size = max_output_file_size
         self._flush_interval = timedelta(seconds=flush_interval)
         self._message_queue: list[str] = []
         self._last_flush_time = datetime.now()
         self._running = True
+        self._unique_consumer_id = self._create_unique_consumer_id()
+        
+    def _create_unique_consumer_id(self) -> str:
+        """
+        Creates a unique consumer id. 
+        It is used in file name to prevent different consumers writing to the same file
+        """
+        consumer_id = self._consumer.memberid()
 
-        consumer_id = consumer.memberid()
-        if not consumer_group_id or not consumer_id:
-            self._unique_consumer_id = str(uuid.uuid4())
+        if not self._consumer_group_id or not consumer_id:
+            unique_consumer_id = str(uuid.uuid4())
         else:
-            self._unique_consumer_id = f"{consumer_group_id}_{consumer_id}"
+            unique_consumer_id = f"{self._consumer_group_id}_{consumer_id}"
 
-    def stop(self) -> None:
+        return unique_consumer_id
+
+    def _stop(self) -> None:
         """
         Stops the consumer's event consumption loop and flush remaining messages.
         """
@@ -154,6 +162,11 @@ class EventConsumer:
 
             while self._running:  # Added to stop the loop
                 raw_msg = self._consumer.poll(timeout=1.0)
+
+                # (0) Create unique consumer id    
+                self._unique_consumer_id = self._create_unique_consumer_id()
+                logger.info(f"(0) Unique consumer id is created: {self._unique_consumer_id}")
+
                 # (1) Waits for up to 1 second before returning None if no message is available.
                 logger.info(f"(1) Consumption. Message: {raw_msg}")
 
@@ -166,8 +179,7 @@ class EventConsumer:
                 try:
                     if raw_msg not in unqiue_msgs:
                         # (2) Parse message
-                        msg_dict = parse_message(raw_msg)
-                        msg_str = json.dumps(msg_dict)
+                        msg_str = parse_message(raw_msg)
                         msg_size = len((msg_str + "\n").encode("utf-8"))
 
                         # (3) No flushing conditions, message is added to queue

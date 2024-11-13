@@ -54,7 +54,7 @@ def test_consumption(kafka_consumer_mock: MagicMock, local_file_writer, clean_up
     time.sleep(general_config_dict["consumption_period"])
 
     # (6) Stop the consumer after test
-    event_consumer.stop()
+    event_consumer._stop()
     consumer_thread.join(timeout=5)
 
     # (7) Verify that the file(s) have been written correctly

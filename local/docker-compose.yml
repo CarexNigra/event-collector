@@ -6,6 +6,7 @@ networks:
     driver: bridge
 
 services:
+  # (1) Clients
   event-collector-app:
     build:
       context: ..
@@ -36,11 +37,12 @@ services:
       - kafka-broker-3
     environment:
       BOOTSTRAP_SERVERS: "kafka-broker-1:9092,kafka-broker-2:9094,kafka-broker-3:9095"
-      ENVIRONMENT: "stg"
+      ENVIRONMENT: "dev"
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
     entrypoint: ["make", "run.consumer", "plain"]
 
+  # (2) Kafka Brokers
   kafka-broker-1:
     image: confluentinc/cp-kafka:latest
     container_name: kafka-broker-1
@@ -108,7 +110,7 @@ services:
     #   - kafka_broker3_data:/var/lib/kafka/data
   
 
-  # (2) Kafka Initialization Service
+  # (3) Kafka Initialization Service
   init-kafka:
     image: confluentinc/cp-kafka:latest
     depends_on:
@@ -123,7 +125,7 @@ services:
       - ./init-kafka.sh:/usr/bin/init-kafka.sh
     entrypoint: /bin/sh -c "/usr/bin/init-kafka.sh"
 
-  # (3) MinIO Service
+  # (4) MinIO Service
   minio:
     image: quay.io/minio/minio
     container_name: minio
