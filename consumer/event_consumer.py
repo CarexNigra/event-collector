@@ -53,7 +53,7 @@ def parse_message(message: Message) -> str:
     """
     key = message.key()
 
-    if key:
+    if key and isinstance(key, bytes):
         event_type = ProducerKeyManager(producer_key=key.decode("utf-8")).get_event_type_from_key()
     else:
         logger.info(f"Message {message} has no key and cannot be parsed")

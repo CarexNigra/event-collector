@@ -1,23 +1,26 @@
 # Event Collector  
 
-The `event-collector` is an application designed to manage event-driven data in distributed systems. Built to leverage Kafka and MinIO, this service handles both the production and consumption of event data, providing a structured way to ingest, process, and store information. The application is structured with modular components that enable event generation, serialization, Kafka integration, and storage.
+The `event-collector` is a set of simple and scalable applications designed to manage consumption and initial storage of analytic events. Built to leverage Kafka and MinIO, this service handles both the production and consumption of event data, providing a structured way to ingest, process, and store information. 
 
-**Key features:** 
-* Event Production: Handles the creation and publication of events to Kafka topics using a FastAPI endpoint (/store). Each event includes a context and data payload, which are validated and serialized using `protobuf` before being sent to specific Kafka partitions with a producer key, facilitating consistent partitioning.
-* Event Consumption: Subscribes to Kafka topics and consumes events, deserializes them, and processes the data for storage. The consumer manages an in-memory message queue with defined thresholds (batch size or time interval) to efficiently batch and write data.
-* Configurable Storage: Supports storage to MinIO. The FileWriterBase class provides a flexible interface for storing data to different backends based on configuration. The MinioFileWriter class implements this base class, allowing data to be stored in MinIO.
-* Modular Design: Includes separate classes and functions for configuration parsing, Kafka management, file storage handling, and message parsing, promoting scalability and modularity.
-* Flexible Configuration: Configurable via TOML files, allowing for customized Kafka and MinIO settings, such as batch sizes, flush intervals, and retry limits.
-
-
-## Table of Contents
+**Table of Contents**
+- [Key Components](#key-components)
 - [Installation](#installation)
 - [Configuration](#configuration)
 - [Usage](#usage)
-- [Key Components](#key-components)
 - [Testing](#testing)
 - [Next steps](#next-steps)
 - [License](#license)
+
+
+## Key Components
+**Event registry**
+>>>> TODO: Add
+
+**API**
+The API exposes a `/store` endpoint that allows users to create and send events to Kafka. Each event includes a context and data payload, which are validated and serialized using `protobuf` before being sent to Kafka. As a part of the API, the Producer is responsible for generating and sending events to Kafka. Using the `ProducerKeyManager`, events are keyed to ensure partitioning consistency.
+
+**Kafka Consumer** 
+The consumer component subscribes to Kafka topics and processes incoming events. Events are deserialized and queued, then flushed to storage when specified thresholds (batch size or time interval) are met. This component ensures efficient handling and storage of high-throughput data. The `FileWriterBase` class provides a flexible interface allowing data to be stored in different backends based on configuration. `MinioFileWriter` class implements this base class.
 
 
 ## Installation
@@ -29,7 +32,7 @@ The `event-collector` is an application designed to manage event-driven data in 
 **Setup steps**
 * Clone the repository `git clone https://github.com/CarexNigra/event-collector.git`
 * Navigate to the directory `cd event-collector`
-* Install dependencies `poetry install`
+* Install dependencies `make install`
 
 
 ## Configuration
@@ -99,19 +102,6 @@ consumer-app         | {"level": "INFO", "timestamp": "2024-11-11T21:22:49.34584
 {"level": "INFO", "timestamp": "2024-11-11T21:15:35.925139+00:00", "app": {"name": "event-collector", "releaseId": "undefined", "message": "(4) Saving. JSON file saved to MinIO at: 2023/12/2/15/9670bd8f-2f53-4a01-8041-26662d563bec_1701530942.json", "extra": null}}
 ```
 
-## Key Components
-**API**
-The API exposes a `/store` endpoint that allows users to create and send events to Kafka. Each event includes a context and data payload, which are validated and serialized using `protobuf` before being sent.
-
-**Kafka Producer**
-The producer component is responsible for generating and sending events to Kafka. Using the `ProducerKeyManager`, events are keyed to ensure partitioning consistency.
-
-**Kafka Consumer** 
-The consumer component subscribes to Kafka topics and processes incoming events. Events are deserialized and queued, then flushed to storage when specified thresholds (batch size or time interval) are met. This component ensures efficient handling and storage of high-throughput data.
-
-**File Storage**
-The `FileWriterBase` class provides a flexible interface allowing data to be stored in different backends based on configuration. `MinioFileWriter` class implements this base class.
-
 
 ## Testing
 * Static + style checks, and tests: `make battery`
@@ -121,25 +111,6 @@ The `FileWriterBase` class provides a flexible interface allowing data to be sto
 
 ## Next steps
 Add Prometheus metrics
-
-## License
-MIT License
-Copyright (c) [2024] [@CarexNigra]
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+>>> TODO: Modify logs logic: log_level env var: to be able to set debug. Describe it here
+>>> TODO: Minio UI: to see file (description)
+>>> TODO: Add event registry section
