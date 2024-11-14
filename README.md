@@ -83,6 +83,10 @@ consumer-app         | {"level": "INFO", "timestamp": "2024-11-11T21:22:49.34584
     ```shell
     curl -v -X POST -H "Content-Type: application/json" 'http://localhost:5000/store' -d '{"event_name": "TestEvent", "context": {"sent_at": 1701530942, "received_at": 1701530942, "processed_at": 1701530942, "message_id": "36eca638-4c0f-4d11-bc9b-cc2290851032", "user_agent": "some_user_agent"}, "data": {"user_id": "example_user_id", "account_id": "example_account_id", "user_role": "OWNER"}}'
     ```
+    * You can also use another event type
+    ```shell
+    curl -v -X POST -H "Content-Type: application/json" 'http://localhost:5000/store' -d '{"event_name": "YetAnotherTestEvent", "context": {"sent_at": 1701530943, "received_at": 1701530944, "processed_at": 1701530945, "message_id": "36eca638-4c0f-4d11-bc9b-cc2290851555", "user_agent": "some_user_agent"}, "data": {"input_type": "MOVE", "object_id": "someObjectId1234", "object_type": "STICKY_NOTE"}}'
+    ```
 
 4. Check that event ends up in the consumer logs
     * In terminal with consumer container (and in Docker Dashboard UI) you will see consumed messages. Here is how it should look like

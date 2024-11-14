@@ -141,7 +141,7 @@ class MinioFileWriter(FileWriterBase):
     """
 
     def __init__(self, root_path, minio_client) -> None:
-        self._root_path = root_path  # = minio bucket_name TODO: should we rename it for comprehensibility?
+        self._root_path = root_path  # This is minio bucket_name 
         self._minio_client = minio_client
 
     def get_full_path(self, messages: list[str], unique_consumer_id: str) -> str:

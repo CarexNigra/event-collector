@@ -53,9 +53,10 @@ def parse_message(message: Message) -> str:
     """
     key = message.key()
 
-    if isinstance(key, bytes):
+    if key:
         event_type = ProducerKeyManager(producer_key=key.decode("utf-8")).get_event_type_from_key()
     else:
+        logger.info(f"Message {message} has no key and cannot be parsed")
         raise ValueError("Message key must be bytes to decode.")
 
     binary_value = message.value()
@@ -118,6 +119,7 @@ class EventConsumer:
         self._last_flush_time = datetime.now()
         self._running = True
         self._unique_consumer_id = self._create_unique_consumer_id()
+        self._first_batch_was_processed: bool = False
         
     def _create_unique_consumer_id(self) -> str:
         """
@@ -163,10 +165,6 @@ class EventConsumer:
             while self._running:  # Added to stop the loop
                 raw_msg = self._consumer.poll(timeout=1.0)
 
-                # (0) Create unique consumer id    
-                self._unique_consumer_id = self._create_unique_consumer_id()
-                logger.info(f"(0) Unique consumer id is created: {self._unique_consumer_id}")
-
                 # (1) Waits for up to 1 second before returning None if no message is available.
                 logger.info(f"(1) Consumption. Message: {raw_msg}")
 
@@ -181,6 +179,16 @@ class EventConsumer:
                         # (2) Parse message
                         msg_str = parse_message(raw_msg)
                         msg_size = len((msg_str + "\n").encode("utf-8"))
+
+                        # (0) Create unique consumer id on the first parsed message read
+                        if msg_str and not self._first_batch_was_processed:
+                            # NOTE: First message received from Kafka is a certain techincal message
+                            # having no key, so there is no parsing of it. And no consumer.memberid() 
+                            # is received, so we can not create unique_consumer_id based on it. 
+                            # Thus we need to take first message that we are able to parse.
+                            self._unique_consumer_id = self._create_unique_consumer_id()
+                            logger.info(f"(0) Unique consumer id is created: {self._unique_consumer_id}")
+                            self._first_batch_was_processed = True
 
                         # (3) No flushing conditions, message is added to queue
                         if queue_size_bytes + msg_size <= self._max_output_file_size:
