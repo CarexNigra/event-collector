@@ -32,9 +32,9 @@ def create_minio_client(config: Optional[dict[str, Any]] = None) -> Minio:
     if not config:
         config = get_config()["minio"]
     minio_config = MinioProperties(**config)
-
-    # logger.info(f"Minio config: {minio_config}, {type(minio_config)}")
     minio_config_dict = minio_config.model_dump(by_alias=True)
+    logger.debug(f"Minio config raw type: {type(minio_config_dict)}, data: {minio_config_dict}")
+    
     minio_client = Minio(**minio_config_dict)
     return minio_client
 
@@ -56,7 +56,7 @@ def create_bucket(bucket_name: str, minio_client: Minio) -> None:
         else:
             logger.info(f"Bucket '{bucket_name}' already exists")
     except S3Error as exc:
-        logger.info(f"Error occurred: {exc}")
+        logger.error(f"Error occurred: {exc}")
 
 
 # ==================================== #
@@ -192,4 +192,4 @@ class MinioFileWriter(FileWriterBase):
             length=len(json_data),
             content_type="application/json",
         )
-        logger.info(f"(4) Saving. JSON file saved to MinIO at: {file_path}")
+        logger.debug(f"(4) Saving. JSON file saved to MinIO at: {file_path}")

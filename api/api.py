@@ -64,7 +64,7 @@ async def store_event(
         # (4) Generate producer key
         key_manager = ProducerKeyManager(event_type=event_item.event_name)
         producer_key = key_manager.generate_key()
-        logger.info(f"Producer key: {producer_key}")
+        logger.debug(f"Producer key: {producer_key}")
 
         # (4) Parse general properties config to later get kafka_topic from it
         general_config_dict = config["general"]
@@ -76,6 +76,8 @@ async def store_event(
             key=producer_key,
             on_delivery=delivery_report,
         )
+        # Ensure messages are sent before returning
+        # kafka_producer.flush(timeout=20)  
 
         # (5) Return 204
         response.status_code = status.HTTP_204_NO_CONTENT

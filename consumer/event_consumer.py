@@ -30,7 +30,7 @@ def create_kafka_consumer(config: Optional[dict[str, Any]] = None) -> Consumer:
     """
     if not config:
         config = get_config()["consumer"]
-    logger.info(f"Kafka consumer raw config: {config}")
+    logger.debug(f"Kafka consumer raw config: {config}")
     kafka_consumer_config = KafkaConsumerProperties(**config)
     kafka_consumer_config_dict = kafka_consumer_config.model_dump(by_alias=True)
     logger.info(f"Kafka consumer config dict: {kafka_consumer_config_dict}")
@@ -56,7 +56,7 @@ def parse_message(message: Message) -> str:
     if key and isinstance(key, bytes):
         event_type = ProducerKeyManager(producer_key=key.decode("utf-8")).get_event_type_from_key()
     else:
-        logger.info(f"Message {message} has no key and cannot be parsed")
+        logger.error(f"Message {message} has no key and cannot be parsed")
         raise ValueError("Message key must be bytes to decode.")
 
     binary_value = message.value()
@@ -64,13 +64,13 @@ def parse_message(message: Message) -> str:
     if event_type in events_mapping:
         event_class = events_mapping.get(event_type)
         if event_class is None:
-            logger.info(f"Event type '{event_type}' not found in events_mapping.")
+            logger.error(f"Event type '{event_type}' not found in events_mapping.")
             return ''
         else:
             event = event_class()
             event.ParseFromString(binary_value)
             event_json_string = MessageToJson(event)
-            logger.info(f"(2) Parsing. Parsed event data type: {type(event_json_string)}, data: {event_json_string}")
+            logger.debug(f"(2) Parsing. Parsed event data type: {type(event_json_string)}, data: {event_json_string}")
             return event_json_string
     else:
         return ''
@@ -146,7 +146,7 @@ class EventConsumer:
         """
         Flushes the in-memory message queue to storage and commit offsets in Kafka.
         """
-        logger.info(f"(3) Flushing {len(self._message_queue)} parsed messages.")
+        logger.debug(f"(3) Flushing {len(self._message_queue)} parsed messages.")
         self._file_writer.write_file(self._message_queue, self._unique_consumer_id)
         self._consumer.commit(asynchronous=True)  # Commit offsets after writing
         self._message_queue = []
@@ -166,13 +166,13 @@ class EventConsumer:
                 raw_msg = self._consumer.poll(timeout=1.0)
 
                 # (1) Waits for up to 1 second before returning None if no message is available.
-                logger.info(f"(1) Consumption. Message: {raw_msg}")
+                logger.debug(f"(1) Consumption. Message: {raw_msg}")
 
                 if raw_msg is None:
                     continue
 
                 if raw_msg.error():
-                    logger.info("(1) Consumption. Kafka message error")
+                    logger.error("(1) Consumption. Kafka message error")
 
                 try:
                     if raw_msg not in unqiue_msgs:

@@ -42,6 +42,6 @@ def delivery_report(err: Optional[BaseException], msg: Any) -> None:
         msg (Any): The Kafka message that was attempted to be delivered.
     """
     if err is not None:
-        logger.info(f"Message delivery failed: {err}")
+        logger.error(f"Message delivery failed: {err}")
     else:
-        logger.info(f"Message delivered to {msg.topic()} [{msg.partition()}] at offset {msg.offset()}")
+        logger.debug(f"Message delivered to {msg.topic()} [{msg.partition()}] at offset {msg.offset()}")

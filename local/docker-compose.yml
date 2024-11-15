@@ -22,6 +22,7 @@ services:
       - kafka-broker-3
     environment:
       BOOTSTRAP_SERVERS: "kafka-broker-1:9092,kafka-broker-2:9094,kafka-broker-3:9095"
+      LOG_LEVEL: ${LOG_LEVEL}
     entrypoint: ["make", "run.api", "plain"]
 
   consumer-app:
@@ -40,6 +41,7 @@ services:
       ENVIRONMENT: "dev"
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      LOG_LEVEL: ${LOG_LEVEL}
     entrypoint: ["make", "run.consumer", "plain"]
 
   # (2) Kafka Brokers
@@ -127,7 +129,7 @@ services:
 
   # (4) MinIO Service
   minio:
-    image: quay.io/minio/minio
+    image: quay.io/minio/minio:latest
     container_name: minio
     networks:
       - kafka_network

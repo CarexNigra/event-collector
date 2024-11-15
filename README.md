@@ -14,7 +14,7 @@ The `event-collector` is a set of simple and scalable applications designed to m
 
 ## Key Components
 **Event registry**
->>>> TODO: Add
+*Event Registy* is a core component that handles serialization and deserialization of event data upon the dispatch of events to Kafka and their consumption from it, enabling flexibility for supporting various event types. *Event Registry* dynamically scans and imports Protocol Buffer `.proto` files located in the designated events folder. It creates a mapping between event types and their corresponding Protocol Buffer classes (`events_mapping`). This allows the system to handle multiple event types without hardcoding them. The `events_mapping` is used by consumers to deserialize events received from Kafka. Based on the `event_type` extracted from the Kafka message `key`, the corresponding Protocol Buffer class is fetched from the mapping and used to reconstruct the event in its original structured format.
 
 **API**
 The API exposes a `/store` endpoint that allows users to create and send events to Kafka. Each event includes a context and data payload, which are validated and serialized using `protobuf` before being sent to Kafka. As a part of the API, the Producer is responsible for generating and sending events to Kafka. Using the `ProducerKeyManager`, events are keyed to ensure partitioning consistency.
@@ -46,13 +46,19 @@ There is a dev config file in `config/` folder: `dev.toml`. `stg.toml` and `prod
 * `consumer` defindes Kafka consumer config. See the [reference](https://docs.confluent.io/platform/current/installation/configuration/consumer-configs.html)
 * `minio` defines config for MinIO object storage except for credentials. 
 
-Credentials for MinIO as well as `kafka_topic` matching the topic in `dev.toml` should be added to environment variables as follows:
-1. Open your .zshrc file in terminal: `nano ~/.zshrc`
-2. Add MinIO credentials:
+Several environment variables need to be added (for being used in `docker-compose.yml`):
+* Credentials for MinIO 
+* `kafka_topic` matching the topic in `dev.toml` 
+* `log_level` which defines what exactly will be logged. If you add `DEBUG`, DEBUG, INFO, WARNING and ERROR logging will be performed. If you add `INFO` - INFO, WARNING and ERROR only. If you add nothing, logging will cover just WARNING and ERROR.
+
+It can be done as follows:
+1. Open your .zshrc file (or other relevant shell configuration file) in terminal: `nano ~/.zshrc` 
+2. Add MinIO credentials, kafka topic:
 ```
 export MINIO_ACCESS_KEY="minio_user"
 export MINIO_SECRET_KEY="minio_password"
 export KAFKA_TOPIC="event-messages"
+export LOG_LEVEL="INFO"
 ```
 3. Save and exit: If you're using nano, press CTRL + X, then Y to confirm, and press Enter to save.
 4. Apply the changes by sourcing the file or restarting your terminal `source ~/.zshrc`
@@ -102,6 +108,11 @@ consumer-app         | {"level": "INFO", "timestamp": "2024-11-11T21:22:49.34584
 {"level": "INFO", "timestamp": "2024-11-11T21:15:35.925139+00:00", "app": {"name": "event-collector", "releaseId": "undefined", "message": "(4) Saving. JSON file saved to MinIO at: 2023/12/2/15/9670bd8f-2f53-4a01-8041-26662d563bec_1701530942.json", "extra": null}}
 ```
 
+5. Check that events batch is written to a file in minIO
+    * open minIO UI in your browser: `http://localhost:9001/login`
+    * enter your credentials (the same you have as environment variables)
+    * go to the `consumed_events` bucket, open all nested folders and verify that there is a newly created .json file there 
+    * NOTE: If you want to see several files, consider sending events with different `received_at` values
 
 ## Testing
 * Static + style checks, and tests: `make battery`
@@ -112,5 +123,3 @@ consumer-app         | {"level": "INFO", "timestamp": "2024-11-11T21:22:49.34584
 ## Next steps
 Add Prometheus metrics
 >>> TODO: Modify logs logic: log_level env var: to be able to set debug. Describe it here
->>> TODO: Minio UI: to see file (description)
->>> TODO: Add event registry section

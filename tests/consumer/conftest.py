@@ -132,7 +132,7 @@ def local_file_writer():
             with open(file_path, "w") as json_file:
                 for m in messages:
                     json_file.write(m + "\n")
-            logger.info(f"(4) Saving. JSON file saved to: {file_path}")
+            logger.debug(f"JSON file saved to: {file_path}")
 
     return LocalFileWriter
 

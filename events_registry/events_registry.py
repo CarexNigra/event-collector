@@ -52,7 +52,7 @@ def get_events_mapping(folder_path: str) -> dict[str, type]:
             for k in d:
                 events_mapping[d[k].__name__] = d[k]
         except ImportError as e:
-            logger.info(f"Error importing module {module_name}: {e}")
+            logger.error(f"Error importing module {module_name}: {e}")
 
     return events_mapping
 
