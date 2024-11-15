@@ -77,7 +77,7 @@ async def store_event(
             on_delivery=delivery_report,
         )
         # Ensure messages are sent before returning
-        # kafka_producer.flush(timeout=20)  
+        kafka_producer.flush(timeout=20)  
 
         # (5) Return 204
         response.status_code = status.HTTP_204_NO_CONTENT
