@@ -13,14 +13,11 @@ The `event-collector` is a set of simple and scalable applications designed to m
 
 
 ## Key Components
-**Event registry**
-*Event Registy* is a core component that handles serialization and deserialization of event data upon the dispatch of events to Kafka and their consumption from it, enabling flexibility for supporting various event types. *Event Registry* dynamically scans and imports Protocol Buffer `.proto` files located in the designated events folder. It creates a mapping between event types and their corresponding Protocol Buffer classes (`events_mapping`). This allows the system to handle multiple event types without hardcoding them. The `events_mapping` is used by consumers to deserialize events received from Kafka. Based on the `event_type` extracted from the Kafka message `key`, the corresponding Protocol Buffer class is fetched from the mapping and used to reconstruct the event in its original structured format.
+**Event registry** is a core component that handles serialization and deserialization of event data upon the dispatch of events to Kafka and their consumption from it, enabling flexibility for supporting various event types. *Event Registry* dynamically scans and imports Protocol Buffer `.proto` files located in the designated events folder. It creates a mapping between event types and their corresponding Protocol Buffer classes (`events_mapping`). This allows the system to handle multiple event types without hardcoding them. The `events_mapping` is used by consumers to deserialize events received from Kafka. Based on the `event_type` extracted from the Kafka message `key`, the corresponding Protocol Buffer class is fetched from the mapping and used to reconstruct the event in its original structured format.
 
-**API**
-The API exposes a `/store` endpoint that allows users to create and send events to Kafka. Each event includes a context and data payload, which are validated and serialized using `protobuf` before being sent to Kafka. As a part of the API, the Producer is responsible for generating and sending events to Kafka. Using the `ProducerKeyManager`, events are keyed to ensure partitioning consistency.
+**API** application exposes a `/store` endpoint that allows users to create and send events to Kafka. Each event includes a context and data payload, which are validated and serialized using `protobuf` before being sent to Kafka. As a part of the API, the Producer is responsible for generating and sending events to Kafka. Using the `ProducerKeyManager`, events are keyed to ensure partitioning consistency.
 
-**Kafka Consumer** 
-The consumer component subscribes to Kafka topics and processes incoming events. Events are deserialized and queued, then flushed to storage when specified thresholds (batch size or time interval) are met. This component ensures efficient handling and storage of high-throughput data. The `FileWriterBase` class provides a flexible interface allowing data to be stored in different backends based on configuration. `MinioFileWriter` class implements this base class.
+**Consumer** application subscribes to Kafka topics and processes incoming events. Events are deserialized and queued, then flushed to storage when specified thresholds (batch size or time interval) are met. This component ensures efficient handling and storage of high-throughput data. The `FileWriterBase` class provides a flexible interface allowing data to be stored in different backends based on configuration. `MinioFileWriter` class implements this base class.
 
 
 ## Installation
@@ -53,7 +50,7 @@ Several environment variables need to be added (for being used in `docker-compos
 
 It can be done as follows:
 1. Open your .zshrc file (or other relevant shell configuration file) in terminal: `nano ~/.zshrc` 
-2. Add MinIO credentials, kafka topic:
+2. Add variables to the end of the file:
 ```
 export MINIO_ACCESS_KEY="minio_user"
 export MINIO_SECRET_KEY="minio_password"
@@ -121,5 +118,4 @@ consumer-app         | {"level": "INFO", "timestamp": "2024-11-11T21:22:49.34584
 * Tests `make tests`
 
 ## Next steps
-Add Prometheus metrics
->>> TODO: Modify logs logic: log_level env var: to be able to set debug. Describe it here
+Add Prometheus metrics + Grafana dashboard
