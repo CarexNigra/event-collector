@@ -1,10 +1,5 @@
-[general]
-kafka_topic = 'event-messages' 
-root_path = 'consumed-events'
-flush_interval = 8 # Seconds
-max_output_file_size = 4194304 # 4Mb in bytes
-
 [producer]
+[producer.kafka]
 bootstrap_servers = "kafka-broker-1:9092,kafka-broker-2:9094,kafka-broker-3:9095"
 retries = 2147483647
 max_in_flight_requests_per_connection = 1 # TODO: To enable retries without reordering
@@ -12,16 +7,27 @@ acks = 'all'
 batch_size = 16384
 enable_idempotence = true 
 delivery_timeout_ms = 120000
-linger_ms = 5
+linger_ms = 100
 request_timeout_ms = 30000
+
+[producer.app]
+kafka_topic = 'event-messages' 
+
 
 # TODO: Figure out are there aditional configs to be here
 [consumer]
+[consumer.kafka]
 bootstrap_servers = "kafka-broker-1:9092,kafka-broker-2:9094,kafka-broker-3:9095"
 group_id = 'test_events_consumer_group'
 partition_assignment_strategy = 'range'
 auto_offset_reset = 'smallest'
 
-[minio]
+[consumer.app]
+kafka_topic = 'event-messages' 
+max_output_file_size = 4194304 # 4Mb in bytes
+flush_interval = 8 # Seconds
+root_path = 'consumed-events'
+
+[consumer.minio]
 endpoint = "minio:9000" 
 secure= false 

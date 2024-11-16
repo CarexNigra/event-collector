@@ -8,3 +8,5 @@
 !Makefile
 !requirements.txt
 !serve/
+!version/
+!pyproject.toml
