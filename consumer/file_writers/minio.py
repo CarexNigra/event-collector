@@ -1,6 +1,5 @@
 import os
 from io import BytesIO
-from typing import Any, Optional
 
 from minio import Minio
 from minio.error import S3Error

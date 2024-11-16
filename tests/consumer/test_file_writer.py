@@ -3,9 +3,9 @@ import os
 
 from pytest_minio_mock.plugin import minio_mock  # type: ignore  # noqa: F401
 
+from config.config import MinioProperties
 from consumer.file_writers.base import get_list_hash
 from consumer.file_writers.minio import MinioFileWriter, create_minio_client
-from config.config import MinioProperties
 
 
 def test_minio_writing(batch_of_events_mock, minio_mock):  # noqa: F811

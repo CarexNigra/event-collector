@@ -1,7 +1,7 @@
 import traceback
 import uuid
 from datetime import datetime, timedelta
-from typing import Any, List, Optional
+from typing import List
 
 from confluent_kafka import Consumer, Message
 from google.protobuf.json_format import MessageToJson

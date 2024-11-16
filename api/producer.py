@@ -4,7 +4,7 @@ from typing import Any, Optional
 from confluent_kafka import Producer
 
 from common.logger import get_logger
-from config.config import KafkaProducerProperties, get_producer_config
+from config.config import get_producer_config
 
 logger = get_logger("kafka-producer")
 
@@ -15,7 +15,7 @@ logger = get_logger("kafka-producer")
 
 
 @lru_cache
-def create_kafka_producer(kafka_producer_config: KafkaProducerProperties | None = None) -> Producer:
+def create_kafka_producer() -> Producer:
     """
     Creates and returns a Kafka producer instance configured with application-specific settings.
     This function uses a cached instance to ensure that the producer is created only once
@@ -24,9 +24,8 @@ def create_kafka_producer(kafka_producer_config: KafkaProducerProperties | None 
     Returns:
         Producer: A configured Kafka producer instance for publishing events.
     """
-    if not kafka_producer_config:
-        config = get_producer_config()
-        kafka_producer_config = config.kafka
+    config = get_producer_config()
+    kafka_producer_config = config.kafka
     logger.info(f"Kafka producer config: {kafka_producer_config}")
     return Producer(**kafka_producer_config.model_dump(by_alias=True))
 

@@ -108,7 +108,7 @@ class MinioProperties(BaseSettings):
         secure (bool): Flag indicating whether to use a secure connection.
     """
 
-    model_config = ConfigDict(env_prefix="MINIO_")
+    model_config = ConfigDict(env_prefix="MINIO_") # type: ignore
 
 
 class ConsumerAppConfig(BaseModel):
