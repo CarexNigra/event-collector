@@ -30,4 +30,4 @@ root_path = 'consumed-events'
 
 [consumer.minio]
 endpoint = "minio:9000" 
-secure= false 
+secure = false 

@@ -3,7 +3,7 @@ import tomllib
 from functools import lru_cache
 
 from pydantic import AliasGenerator, BaseModel, ConfigDict
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 def get_config_path() -> str:
@@ -97,8 +97,8 @@ class KafkaConsumerProperties(BaseModel):
 class MinioProperties(BaseSettings):
     endpoint: str
     secure: bool
-    access_key: str | None = None
-    secret_key: str | None = None
+    access_key: str | None
+    secret_key: str | None
     """
     Model representing configuration properties for MinIO.
     Args:
@@ -108,7 +108,10 @@ class MinioProperties(BaseSettings):
         secure (bool): Flag indicating whether to use a secure connection.
     """
 
-    model_config = ConfigDict(env_prefix="MINIO_") # type: ignore
+    model_config = SettingsConfigDict(env_prefix="MINIO_")
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
 
 class ConsumerAppConfig(BaseModel):

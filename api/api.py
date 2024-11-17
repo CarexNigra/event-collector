@@ -76,7 +76,7 @@ async def store_event(
             on_delivery=delivery_report,
         )
         # Trigger the on_delivery callback
-        kafka_producer.poll(0) 
+        kafka_producer.poll(0)
 
         # (5) Return 204
         response.status_code = status.HTTP_204_NO_CONTENT
