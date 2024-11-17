@@ -46,7 +46,7 @@ There is a dev config file in `config/` folder: `dev.toml`. `stg.toml` and `prod
 Several environment variables need to be added (for being used in `docker-compose.yml`):
 * Credentials for MinIO 
 * `kafka_topic` matching the topic in `dev.toml` 
-* `log_level` which defines what exactly will be logged. If you add `DEBUG`, DEBUG, INFO, WARNING and ERROR logging will be performed. If you add `INFO` - INFO, WARNING and ERROR only. If you add nothing, logging will cover just WARNING and ERROR.
+* `log_level` which defines what exactly will be logged. If you add `DEBUG`, DEBUG, INFO, WARNING and ERROR logging will be performed. If you add `INFO` - INFO, WARNING and ERROR only; etc. If you add nothing, logging will be set to INFO.
 
 It can be done as follows:
 1. Open your .zshrc file (or other relevant shell configuration file) in terminal: `nano ~/.zshrc` 
@@ -55,7 +55,7 @@ It can be done as follows:
 export MINIO_ACCESS_KEY="minio_user"
 export MINIO_SECRET_KEY="minio_password"
 export KAFKA_TOPIC="event-messages"
-export LOG_LEVEL="INFO"
+export LOG_LEVEL="DEBUG"
 ```
 3. Save and exit: If you're using nano, press CTRL + X, then Y to confirm, and press Enter to save.
 4. Apply the changes by sourcing the file or restarting your terminal `source ~/.zshrc`
@@ -95,14 +95,19 @@ consumer-app         | {"level": "INFO", "timestamp": "2024-11-11T21:22:49.34584
     ```
 
 4. Check that event ends up in the consumer logs
-    * In terminal with consumer container (and in Docker Dashboard UI) you will see consumed messages. Here is how it should look like
+    * In terminal with consumer container (and in Docker Dashboard UI) you will see consumed messages. Here is how it should look like if your `log_level` is set to `DEBUG`:
 ```
-{"level": "INFO", "timestamp": "2024-11-11T21:15:35.344630+00:00", "app": {"name": "event-collector", "releaseId": "undefined", "message": "(1) Consumption. Message: <cimpl.Message object at 0xffff93a37c40>", "extra": null}}
-{"level": "INFO", "timestamp": "2024-11-11T21:15:35.344995+00:00", "app": {"name": "event-collector", "releaseId": "undefined", "message": "(2) Parsing. Event class data type: <class 'dict'>, data: {'context': {'sentAt': '1701530942', 'receivedAt': '1701530942', 'processedAt': '1701530942', 'messageId': '36eca638-4c0f-4d11-bc9b-cc2290851032', 'userAgent': 'some_user_agent'}, 'userId': 'example_user_id', 'accountId': 'example_account_id', 'userRole': 'OWNER'}", "extra": null}}
-{"level": "INFO", "timestamp": "2024-11-11T21:15:35.919841+00:00", "app": {"name": "event-collector", "releaseId": "undefined", "message": "(1) Consumption. Message: <cimpl.Message object at 0xffff93a37cc0>", "extra": null}}
-{"level": "INFO", "timestamp": "2024-11-11T21:15:35.920253+00:00", "app": {"name": "event-collector", "releaseId": "undefined", "message": "(2) Parsing. Event class data type: <class 'dict'>, data: {'context': {'sentAt': '1701530942', 'receivedAt': '1701530942', 'processedAt': '1701530942', 'messageId': '36eca638-4c0f-4d11-bc9b-cc2290851032', 'userAgent': 'some_user_agent'}, 'userId': 'example_user_id', 'accountId': 'example_account_id', 'userRole': 'OWNER'}", "extra": null}}
-{"level": "INFO", "timestamp": "2024-11-11T21:15:35.920336+00:00", "app": {"name": "event-collector", "releaseId": "undefined", "message": "(3) Flushing 32 parsed messages.", "extra": null}}
-{"level": "INFO", "timestamp": "2024-11-11T21:15:35.925139+00:00", "app": {"name": "event-collector", "releaseId": "undefined", "message": "(4) Saving. JSON file saved to MinIO at: 2023/12/2/15/9670bd8f-2f53-4a01-8041-26662d563bec_1701530942.json", "extra": null}}
+{"level": "DEBUG", "timestamp": "2024-11-17T18:16:06.063673+00:00", "app": {"name": "kafka-consumer", "releaseId": "0.1.0", "message": "(1) Consumption. Message: <cimpl.Message object at 0xffff84097ac0>", "extra": null}}
+{"level": "DEBUG", "timestamp": "2024-11-17T18:16:06.063870+00:00", "app": {"name": "kafka-consumer", "releaseId": "0.1.0", "message": "(2) Parsing. Parsed event data type: <class 'str'>, data: {\n  \"context\": {\n    \"sentAt\": \"1701530942\",\n    \"receivedAt\": \"1701530942\",\n    \"processedAt\": \"1701530942\",\n    \"messageId\": \"36eca638-4c0f-4d11-bc9b-cc2290851032\",\n    \"userAgent\": \"some_user_agent\"\n  },\n  \"userId\": \"example_user_id\",\n  \"accountId\": \"example_account_id\",\n  \"userRole\": \"OWNER\"\n}", "extra": null}}
+{"level": "DEBUG", "timestamp": "2024-11-17T18:16:07.346116+00:00", "app": {"name": "kafka-consumer", "releaseId": "0.1.0", "message": "(1) Consumption. Message: <cimpl.Message object at 0xffff84097ac0>", "extra": null}}
+{"level": "DEBUG", "timestamp": "2024-11-17T18:16:07.346282+00:00", "app": {"name": "kafka-consumer", "releaseId": "0.1.0", "message": "(2) Parsing. Parsed event data type: <class 'str'>, data: {\n  \"context\": {\n    \"sentAt\": \"1701530943\",\n    \"receivedAt\": \"1701530944\",\n    \"processedAt\": \"1701530945\",\n    \"messageId\": \"36eca638-4c0f-4d11-bc9b-cc2290851555\",\n    \"userAgent\": \"some_user_agent\"\n  },\n  \"inputType\": \"MOVE\",\n  \"objectId\": \"someObjectId1234\",\n  \"objectType\": \"STICKY_NOTE\"\n}", "extra": null}}
+{"level": "DEBUG", "timestamp": "2024-11-17T18:16:24.696942+00:00", "app": {"name": "kafka-consumer", "releaseId": "0.1.0", "message": "(1) Consumption. Message: <cimpl.Message object at 0xffff84097ac0>", "extra": null}}
+{"level": "DEBUG", "timestamp": "2024-11-17T18:16:24.697122+00:00", "app": {"name": "kafka-consumer", "releaseId": "0.1.0", "message": "(2) Parsing. Parsed event data type: <class 'str'>, data: {\n  \"context\": {\n    \"sentAt\": \"1701530943\",\n    \"receivedAt\": \"1701530944\",\n    \"processedAt\": \"1701530945\",\n    \"messageId\": \"36eca638-4c0f-4d11-bc9b-cc2290851555\",\n    \"userAgent\": \"some_user_agent\"\n  },\n  \"inputType\": \"MOVE\",\n  \"objectId\": \"someObjectId1234\",\n  \"objectType\": \"STICKY_NOTE\"\n}", "extra": null}}
+{"level": "DEBUG", "timestamp": "2024-11-17T18:16:24.697167+00:00", "app": {"name": "kafka-consumer", "releaseId": "0.1.0", "message": "(3) Message is already in the queue. Not added.", "extra": null}}
+{"level": "DEBUG", "timestamp": "2024-11-17T18:16:24.697192+00:00", "app": {"name": "kafka-consumer", "releaseId": "0.1.0", "message": "(3) Flushing. Start flushing by time", "extra": null}}
+{"level": "DEBUG", "timestamp": "2024-11-17T18:16:24.697209+00:00", "app": {"name": "kafka-consumer", "releaseId": "0.1.0", "message": "(4) Flushing 2 parsed messages.", "extra": null}}
+{"level": "DEBUG", "timestamp": "2024-11-17T18:16:24.697252+00:00", "app": {"name": "file-writer-base", "releaseId": "0.1.0", "message": "(5) Saving. Hash of consumed message queue: 17368a375d036dd5", "extra": null}}
+{"level": "DEBUG", "timestamp": "2024-11-17T18:16:24.700675+00:00", "app": {"name": "file-writer-minio", "releaseId": "0.1.0", "message": "(6) Saving. JSON file saved to MinIO at: 2023/12/2/15/test_events_consumer_group_rdkafka-c177a19f-8cbb-41e3-9b71-0d2efcce436d_17368a375d036dd5.json", "extra": null}}
 ```
 
 5. Check that events batch is written to a file in minIO

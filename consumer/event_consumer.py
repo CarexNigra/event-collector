@@ -145,7 +145,6 @@ class EventConsumer:
         """
         Flushes the in-memory message queue to storage and commit offsets in Kafka.
         """
-        # logger.debug(f"(2) Message queue {self._message_queue}")
         logger.debug(f"(4) Flushing {len(self._message_queue)} parsed messages.")
         self._file_writer.write_file(self._message_queue, self._unique_consumer_id)
         self._consumer.commit(asynchronous=True)  # Commit offsets after writing
@@ -166,7 +165,7 @@ class EventConsumer:
                 raw_msg = self._consumer.poll(timeout=1.0)
 
                 # (1) Waits for up to 1 second before returning None if no message is available.
-                # logger.debug(f"(1) Consumption. Message: {raw_msg}")
+                logger.debug(f"(1) Consumption. Message: {raw_msg}")
 
                 if raw_msg is None:
                     continue
