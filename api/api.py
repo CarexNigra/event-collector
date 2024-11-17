@@ -3,12 +3,12 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from api.producer import create_kafka_producer, delivery_report
 from api.request import RequestEventItem
 from common.logger import get_logger
-from config.config import get_config
+from config.config import get_producer_config
 from events.context_pb2 import EventContext
 from events_registry.events_registry import events_mapping
 from events_registry.key_manager import ProducerKeyManager
 
-logger = get_logger()
+logger = get_logger("api")
 
 app = FastAPI()
 
@@ -19,7 +19,7 @@ async def store_event(
     response: Response,
     event_item: RequestEventItem,
     kafka_producer=Depends(create_kafka_producer),
-    config=Depends(get_config),
+    config=Depends(get_producer_config),
 ) -> None:
     """
     Endpoint to receive and store an event in Kafka.
@@ -66,18 +66,17 @@ async def store_event(
         producer_key = key_manager.generate_key()
         logger.debug(f"Producer key: {producer_key}")
 
-        # (4) Parse general properties config to later get kafka_topic from it
-        general_config_dict = config["general"]
+        kafka_topic = config.app.kafka_topic
 
         # (5) Send serialized_event to Kafka
         kafka_producer.produce(
-            topic=general_config_dict["kafka_topic"],
+            topic=kafka_topic,
             value=serialized_event,
             key=producer_key,
             on_delivery=delivery_report,
         )
-        # Ensure messages are sent before returning
-        kafka_producer.flush(timeout=20)  
+        # Trigger the on_delivery callback
+        kafka_producer.poll(0)
 
         # (5) Return 204
         response.status_code = status.HTTP_204_NO_CONTENT

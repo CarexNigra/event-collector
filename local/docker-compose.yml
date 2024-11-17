@@ -39,9 +39,9 @@ services:
     environment:
       BOOTSTRAP_SERVERS: "kafka-broker-1:9092,kafka-broker-2:9094,kafka-broker-3:9095"
       ENVIRONMENT: "dev"
-      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
-      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
-      LOG_LEVEL: ${LOG_LEVEL}
+      MINIO_ACCESS_KEY: "${MINIO_ACCESS_KEY}"
+      MINIO_SECRET_KEY: "${MINIO_SECRET_KEY}"
+      LOG_LEVEL: "${LOG_LEVEL}"
     entrypoint: ["make", "run.consumer", "plain"]
 
   # (2) Kafka Brokers
@@ -140,10 +140,10 @@ services:
     #   - minio-data:/data
     #   - minio-config:/root/.minio
     environment:
-      MINIO_ROOT_USER: '${MINIO_ACCESS_KEY}'
-      MINIO_ROOT_PASSWORD: '${MINIO_SECRET_KEY}'
-      MINIO_ADDRESS: ':9000'
-      MINIO_CONSOLE_ADDRESS: ':9001'
+      MINIO_ROOT_USER: "${MINIO_ACCESS_KEY}"
+      MINIO_ROOT_PASSWORD: "${MINIO_SECRET_KEY}"
+      MINIO_ADDRESS: ":9000"
+      MINIO_CONSOLE_ADDRESS: ":9001"
     command: server /data --console-address ":9001"
 
 # volumes:

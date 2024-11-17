@@ -4,9 +4,9 @@ from typing import Any, Optional
 from confluent_kafka import Producer
 
 from common.logger import get_logger
-from config.config import KafkaProducerProperties, get_config
+from config.config import get_producer_config
 
-logger = get_logger()
+logger = get_logger("kafka-producer")
 
 
 # ==================================== #
@@ -24,11 +24,10 @@ def create_kafka_producer() -> Producer:
     Returns:
         Producer: A configured Kafka producer instance for publishing events.
     """
-    kafka_producer_config_dict = get_config()["producer"]
-    kafka_producer_config = KafkaProducerProperties(**kafka_producer_config_dict)
-
+    config = get_producer_config()
+    kafka_producer_config = config.kafka
     logger.info(f"Kafka producer config: {kafka_producer_config}")
-    return Producer(kafka_producer_config.model_dump(by_alias=True))
+    return Producer(**kafka_producer_config.model_dump(by_alias=True))
 
 
 def delivery_report(err: Optional[BaseException], msg: Any) -> None:
@@ -44,4 +43,7 @@ def delivery_report(err: Optional[BaseException], msg: Any) -> None:
     if err is not None:
         logger.error(f"Message delivery failed: {err}")
     else:
-        logger.debug(f"Message delivered to the '{msg.topic()}` Kafka topic, partition [{msg.partition()}] at offset {msg.offset()}")
+        logger.debug(
+            f"Message delivered to the '{msg.topic()}` Kafka topic, "
+            "partition [{msg.partition()}] at offset {msg.offset()}"
+        )

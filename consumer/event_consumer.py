@@ -1,25 +1,25 @@
 import traceback
 import uuid
 from datetime import datetime, timedelta
-from typing import Any, List, Optional
+from typing import List
 
 from confluent_kafka import Consumer, Message
 from google.protobuf.json_format import MessageToJson
 
 from common.logger import get_logger
-from config.config import KafkaConsumerProperties, get_config
-from consumer.file_writers import FileWriterBase
+from config.config import KafkaConsumerProperties, get_consumer_config
+from consumer.file_writers.base import FileWriterBase
 from events_registry.events_registry import events_mapping
 from events_registry.key_manager import ProducerKeyManager
 
-logger = get_logger()
+logger = get_logger("kafka-consumer")
 
 # ==================================== #
 # (1) Create consumer instance
 # ==================================== #
 
 
-def create_kafka_consumer(config: Optional[dict[str, Any]] = None) -> Consumer:
+def create_kafka_consumer(kafka_consumer_config: KafkaConsumerProperties | None = None) -> Consumer:
     """
     Creates a Kafka Consumer instance with a specified or default configuration.
     Args:
@@ -28,10 +28,9 @@ def create_kafka_consumer(config: Optional[dict[str, Any]] = None) -> Consumer:
     Returns:
         Consumer: The configured Kafka consumer instance.
     """
-    if not config:
-        config = get_config()["consumer"]
-    logger.debug(f"Kafka consumer raw config: {config}")
-    kafka_consumer_config = KafkaConsumerProperties(**config)
+    if not kafka_consumer_config:
+        config = get_consumer_config()
+        kafka_consumer_config = config.kafka
     kafka_consumer_config_dict = kafka_consumer_config.model_dump(by_alias=True)
     logger.info(f"Kafka consumer config dict: {kafka_consumer_config_dict}")
     return Consumer(**kafka_consumer_config_dict)
@@ -65,7 +64,7 @@ def parse_message(message: Message) -> str:
         event_class = events_mapping.get(event_type)
         if event_class is None:
             logger.error(f"Event type '{event_type}' not found in events_mapping.")
-            return ''
+            return ""
         else:
             event = event_class()
             event.ParseFromString(binary_value)
@@ -73,7 +72,7 @@ def parse_message(message: Message) -> str:
             logger.debug(f"(2) Parsing. Parsed event data type: {type(event_json_string)}, data: {event_json_string}")
             return event_json_string
     else:
-        return ''
+        return ""
 
 
 # ==================================== #
@@ -120,10 +119,10 @@ class EventConsumer:
         self._running = True
         self._unique_consumer_id = self._create_unique_consumer_id()
         self._first_batch_was_processed: bool = False
-        
+
     def _create_unique_consumer_id(self) -> str:
         """
-        Creates a unique consumer id. 
+        Creates a unique consumer id.
         It is used in file name to prevent different consumers writing to the same file
         """
         consumer_id = self._consumer.memberid()
@@ -183,8 +182,8 @@ class EventConsumer:
                         # (0) Create unique consumer id on the first parsed message read
                         if msg_str and not self._first_batch_was_processed:
                             # NOTE: First message received from Kafka is a certain techincal message
-                            # having no key, so there is no parsing of it. And no consumer.memberid() 
-                            # is received, so we can not create unique_consumer_id based on it. 
+                            # having no key, so there is no parsing of it. And no consumer.memberid()
+                            # is received, so we can not create unique_consumer_id based on it.
                             # Thus we need to take first message that we are able to parse.
                             self._unique_consumer_id = self._create_unique_consumer_id()
                             logger.info(f"(0) Unique consumer id is created: {self._unique_consumer_id}")

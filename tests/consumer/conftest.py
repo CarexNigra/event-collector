@@ -9,12 +9,12 @@ import pytest
 from google.protobuf.json_format import MessageToJson
 
 from common.logger import get_logger
-from consumer.file_writers import FileWriterBase
+from consumer.file_writers.base import FileWriterBase, get_list_hash
 from events.context_pb2 import EventContext
 from events_registry.events_registry import events_mapping
 from events_registry.key_manager import ProducerKeyManager
 
-logger = get_logger()
+logger = get_logger("test-consumer")
 
 
 # (1) Create event instance and populate it with data
@@ -117,7 +117,8 @@ def local_file_writer():
                 os.makedirs(folder_path, exist_ok=True)
 
             # (3) Create file path
-            file_path = self.create_file_path(folder_path, date_dict, unique_consumer_id)
+            msg_hash = get_list_hash(messages)
+            file_path = self.create_file_path(folder_path, msg_hash, unique_consumer_id)
 
             return file_path
 
