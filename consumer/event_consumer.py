@@ -205,7 +205,7 @@ class EventConsumer:
                             queue_size_bytes = msg_size
                             unqiue_msgs = set([msg_str])
                     else:
-                        logger.debug("(3) Message is already in the queue. Not added.")
+                        logger.debug("(2.5) Message is already in the queue. Not added.")
 
                     # (6) Flushing option by time
                     current_time = datetime.now()
