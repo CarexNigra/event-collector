@@ -4,7 +4,7 @@ import os
 
 from common.logger import get_logger
 
-logger = get_logger()
+logger = get_logger("events-registry")
 
 FOLDER_PATH = "events"
 # NOTE: can keep it here, since events folder doesn't change, and sticks to this repo structure

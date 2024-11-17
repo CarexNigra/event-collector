@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Producer and consumer for handling events"
 authors = ["Lara Simonova <lara@miro.com>"]
 readme = "README.md"
+package-mode = false # to supress certain poetry warning
 
 [tool.poetry.dependencies]
 python = "^3.11"
@@ -17,6 +18,8 @@ types-protobuf = "^5.27.0.20240626"
 minio = "^7.2.8"
 gunicorn = "^23.0.0"
 pydantic-settings = "^2.6.0"
+tomli = "^2.1.0" # NOTE: to parse toml in runtime and calculate fast hashes with xxhash
+xxhash = "^3.5.0"
 
 [tool.poetry.group.dev.dependencies]
 mypy = "^1.7.0"
@@ -30,6 +33,10 @@ types-confluent-kafka = "^1.2.2"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options] # NOTE: only scan test files in the tests folder
+testpaths = ["tests"]
+norecursedirs = ["__pycache__"]
 
 [tool.ruff]
 exclude = [

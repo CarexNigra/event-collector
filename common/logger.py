@@ -6,13 +6,10 @@ import traceback
 from types import TracebackType
 from typing import Any, Mapping, Optional, Tuple, Type, Union
 
-import pkg_resources  # type: ignore
+from version import get_version_from_pyproject
 
-app_name = "event-collector"
-try:
-    app_version = pkg_resources.get_distribution(app_name).version
-except pkg_resources.DistributionNotFound:
-    app_version = "undefined"
+APP_NAME = "event-collector"
+APP_VERSION = get_version_from_pyproject()
 
 
 class ExtraLogger(logging.Logger):
@@ -123,7 +120,7 @@ class JSONFormatter(logging.Formatter):
             "timestamp": datetime.datetime.fromtimestamp(record.created, tz=datetime.timezone.utc),
             "app": {
                 "name": record.name,
-                "releaseId": app_version,
+                "releaseId": APP_VERSION,
                 "message": record.getMessage(),
                 "extra": record._extra,  # type: ignore
             },
@@ -142,44 +139,27 @@ class JSONFormatter(logging.Formatter):
         return json_formatted
 
 
-class MultiLevelFilter(logging.Filter):
-    """
-    Custom filter to allow multiple log levels.
-    """
-    def __init__(self, levels):
-        super().__init__()
-        self.levels = levels
-
-    def filter(self, record):
-        return record.levelno in self.levels
-
-
-def get_logger() -> logging.Logger:
+def get_logger(name: str = APP_NAME) -> logging.Logger:
     """
     Configures and returns an instance of `ExtraLogger` with JSON formatting.
+
+    Args:
+        name (str): name of the app where the logger is instantiated
 
     Logs:
         logging.Logger: The configured `ExtraLogger` instance for logging in JSON format.
     """
-    log_level = os.getenv("LOG_LEVEL", "ERROR").upper()
+    log_level = os.getenv("LOG_LEVEL", "INFO").upper()
     logging.setLoggerClass(ExtraLogger)
-    logger = logging.getLogger(app_name)
-    if log_level == "DEBUG": # For dev 
-        log_levels = [logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR]
-    elif log_level == "INFO": # For prod
-        log_levels = [logging.INFO, logging.WARNING, logging.ERROR]
-    else: # Default
-        log_levels = [logging.WARNING, logging.ERROR]
+    logger = logging.getLogger(name)
+    logger.setLevel(log_level)
 
-    logger.setLevel(logging.DEBUG)  # Set the base level to capture all logs
-    
     loggingStreamHandler = logging.StreamHandler()
     loggingStreamHandler.setFormatter(JSONFormatter())
+
     if logger.hasHandlers():
         logger.handlers.clear()
-
-    # Add the custom filter to the handler
-    loggingStreamHandler.addFilter(MultiLevelFilter(log_levels))
     logger.addHandler(loggingStreamHandler)
     logger.propagate = False
+
     return logger

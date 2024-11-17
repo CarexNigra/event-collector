@@ -1,39 +1,38 @@
 import traceback
 import uuid
 from datetime import datetime, timedelta
-from typing import Any, List, Optional
+from typing import List
 
 from confluent_kafka import Consumer, Message
 from google.protobuf.json_format import MessageToJson
 
 from common.logger import get_logger
-from config.config import KafkaConsumerProperties, get_config
-from consumer.file_writers import FileWriterBase
+from config.config import get_consumer_config
+from consumer.file_writers.base import FileWriterBase
 from events_registry.events_registry import events_mapping
 from events_registry.key_manager import ProducerKeyManager
 
-logger = get_logger()
+logger = get_logger("kafka-consumer")
 
 # ==================================== #
 # (1) Create consumer instance
 # ==================================== #
 
 
-def create_kafka_consumer(config: Optional[dict[str, Any]] = None) -> Consumer:
+def create_kafka_consumer() -> Consumer:
     """
     Creates a Kafka Consumer instance with a specified or default configuration.
-    Args:
-        config (Optional[dict[str, Any]]): Kafka consumer configuration.
-                                           If None, the default configuration is used.
+
     Returns:
         Consumer: The configured Kafka consumer instance.
     """
-    if not config:
-        config = get_config()["consumer"]
-    logger.debug(f"Kafka consumer raw config: {config}")
-    kafka_consumer_config = KafkaConsumerProperties(**config)
+
+    config = get_consumer_config()
+    kafka_consumer_config = config.kafka
+
     kafka_consumer_config_dict = kafka_consumer_config.model_dump(by_alias=True)
     logger.info(f"Kafka consumer config dict: {kafka_consumer_config_dict}")
+
     return Consumer(**kafka_consumer_config_dict)
 
 
@@ -65,7 +64,7 @@ def parse_message(message: Message) -> str:
         event_class = events_mapping.get(event_type)
         if event_class is None:
             logger.error(f"Event type '{event_type}' not found in events_mapping.")
-            return ''
+            return ""
         else:
             event = event_class()
             event.ParseFromString(binary_value)
@@ -73,7 +72,7 @@ def parse_message(message: Message) -> str:
             logger.debug(f"(2) Parsing. Parsed event data type: {type(event_json_string)}, data: {event_json_string}")
             return event_json_string
     else:
-        return ''
+        return ""
 
 
 # ==================================== #
@@ -120,10 +119,10 @@ class EventConsumer:
         self._running = True
         self._unique_consumer_id = self._create_unique_consumer_id()
         self._first_batch_was_processed: bool = False
-        
+
     def _create_unique_consumer_id(self) -> str:
         """
-        Creates a unique consumer id. 
+        Creates a unique consumer id.
         It is used in file name to prevent different consumers writing to the same file
         """
         consumer_id = self._consumer.memberid()
@@ -146,7 +145,8 @@ class EventConsumer:
         """
         Flushes the in-memory message queue to storage and commit offsets in Kafka.
         """
-        logger.debug(f"(3) Flushing {len(self._message_queue)} parsed messages.")
+        # logger.debug(f"(2) Message queue {self._message_queue}")
+        logger.debug(f"(4) Flushing {len(self._message_queue)} parsed messages.")
         self._file_writer.write_file(self._message_queue, self._unique_consumer_id)
         self._consumer.commit(asynchronous=True)  # Commit offsets after writing
         self._message_queue = []
@@ -166,7 +166,7 @@ class EventConsumer:
                 raw_msg = self._consumer.poll(timeout=1.0)
 
                 # (1) Waits for up to 1 second before returning None if no message is available.
-                logger.debug(f"(1) Consumption. Message: {raw_msg}")
+                # logger.debug(f"(1) Consumption. Message: {raw_msg}")
 
                 if raw_msg is None:
                     continue
@@ -175,48 +175,54 @@ class EventConsumer:
                     logger.error("(1) Consumption. Kafka message error")
 
                 try:
-                    if raw_msg not in unqiue_msgs:
-                        # (2) Parse message
-                        msg_str = parse_message(raw_msg)
+                    # (2) Parse message
+                    msg_str = parse_message(raw_msg)
+
+                    if msg_str not in unqiue_msgs:
+                        # (3) Calculate size
                         msg_size = len((msg_str + "\n").encode("utf-8"))
 
                         # (0) Create unique consumer id on the first parsed message read
                         if msg_str and not self._first_batch_was_processed:
                             # NOTE: First message received from Kafka is a certain techincal message
-                            # having no key, so there is no parsing of it. And no consumer.memberid() 
-                            # is received, so we can not create unique_consumer_id based on it. 
+                            # having no key, so there is no parsing of it. And no consumer.memberid()
+                            # is received, so we can not create unique_consumer_id based on it.
                             # Thus we need to take first message that we are able to parse.
                             self._unique_consumer_id = self._create_unique_consumer_id()
-                            logger.info(f"(0) Unique consumer id is created: {self._unique_consumer_id}")
+                            logger.info(f"(2.5) Unique consumer id is created: {self._unique_consumer_id}")
                             self._first_batch_was_processed = True
 
-                        # (3) No flushing conditions, message is added to queue
+                        # (4) No flushing conditions, message is added to queue
                         if queue_size_bytes + msg_size <= self._max_output_file_size:
                             self._message_queue.append(msg_str)
                             queue_size_bytes += msg_size
-                            unqiue_msgs.add(raw_msg)
+                            unqiue_msgs.add(msg_str)
 
-                        # (4) Flushing option by queue size, message added to empty queue after flushing
+                        # (5) Flushing option by queue size, message added to empty queue after flushing
                         else:
+                            logger.debug("(3) Flushing. Start flushing by file size")
                             self._flush_messages()
                             self._message_queue.append(msg_str)
                             queue_size_bytes = msg_size
-                            unqiue_msgs = set([raw_msg])
+                            unqiue_msgs = set([msg_str])
+                    else:
+                        logger.debug("(3) Message is already in the queue. Not added.")
 
-                        # (5) Flushing option by time
-                        current_time = datetime.now()
-                        if current_time - self._last_flush_time >= self._flush_interval:
-                            self._flush_messages()
-                            self._last_flush_time = current_time
-                            queue_size_bytes = 0
-                            unqiue_msgs = set()
+                    # (6) Flushing option by time
+                    current_time = datetime.now()
+                    if current_time - self._last_flush_time >= self._flush_interval:
+                        logger.debug("(3) Flushing. Start flushing by time")
+                        self._flush_messages()
+                        self._last_flush_time = current_time
+                        queue_size_bytes = 0
+                        unqiue_msgs = set()
 
                 except Exception:
                     stack_trace = traceback.format_exc()
                     logger.error(f"(2) Parsing. Error parsing message: {raw_msg}. Exception: {stack_trace}")
-                    # (6) Continue with next message, do not stop processing
+                    # (7) Continue with next message, do not stop processing
 
         finally:
-            # (7) Close down consumer to commit final offsets.
+            # (8) Close down consumer to commit final offsets.
             self._flush_messages()
             self._consumer.close()
