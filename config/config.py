@@ -1,10 +1,13 @@
 import os
 import tomllib
 from functools import lru_cache
-from typing import Any
 
 from pydantic import AliasGenerator, BaseModel, ConfigDict
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from common.logger import get_logger
+
+logger = get_logger("config-parser")
 
 
 def get_config_path() -> str:
@@ -19,6 +22,7 @@ def get_config_path() -> str:
     if os.path.exists(config_fpath):
         return config_fpath
     else:
+        logger.error(f"There is no config file for {environmnet_type} environment")
         raise Exception(f"There is no config file for {environmnet_type} environment")
 
 
@@ -34,25 +38,9 @@ def underscore_to_dot(string: str) -> str:
     return string
 
 
-class KafkaConsumerProperties(BaseModel):
-    bootstrap_servers: str
-    group_id: str
-    auto_offset_reset: str
-    partition_assignment_strategy: str
-    """
-    Model representing configuration properties for a Kafka consumer.
-    Args:
-        bootstrap_servers (str): Comma-separated Kafka server addresses (brokers).
-        group_id (str): Consumer group ID for Kafka.
-        auto_offset_reset (str): Policy for resetting offsets.
-        partition_assignment_strategy (str): Strategy for partition assignment.
-    """
-
-    model_config = ConfigDict(
-        alias_generator=AliasGenerator(
-            serialization_alias=underscore_to_dot,
-        )
-    )
+########################################
+# (1) Producer config classes
+########################################
 
 
 class KafkaProducerProperties(BaseModel):
@@ -86,76 +74,138 @@ class KafkaProducerProperties(BaseModel):
     )
 
 
-class ConfigParser:
+class ProducerAppConfig(BaseModel):
+    kafka_topic: str
     """
-    Class responsible for loading and parsing the configuration file.
+    Model representing configuration properties for the producer app.
+    Args:
+        kafka_topic (str): topic which producer app would send messages to
     """
 
-    def __init__(self, path_to_config_toml: str) -> None:
-        """
-        Initializes the ConfigParser with the path to the TOML configuration file.
-        Input:
-            path_to_config_toml (str): Path to the configuration TOML file.
-        """
-        self._path_to_config_toml: str = path_to_config_toml
-        with open(self._path_to_config_toml, "rb") as file:
-            self._config: Any = tomllib.load(file)
 
-    def _get_section(self, name: str) -> dict:
-        """
-        Retrieves a specific section from the configuration.
-        Input:
-            name (str): The section name to retrieve.
-        Output:
-            dict[str, Any]: The configuration data for the specified section.
-        """
-        section = self._config.get(name, None)  # Outputs dict
-        if not section:
-            raise Exception(f"No `{name}` config found in the file, located at: {self._path_to_config_toml}")
-        return section
+class ProducerConfig(BaseModel):
+    kafka: KafkaProducerProperties
+    app: ProducerAppConfig
+    """
+    Model representing configuration properties for a Kafka producer and producer app.
+    Args:
+        kafka (KafkaProducerProperties): model representing configuration properties for a Kafka producer.
+        app (ProducerAppConfig): model representing configuration properties for the producer app.
+    """
 
-    def get_all_configs_dict(self) -> dict[str, dict[str, Any]]:
-        """
-        Retrieve all configuration sections.
-        Output:
-            dict[str, dict[str, Any]]: A dictionary of all configuration sections and their contents.
-        """
-        all_configs_dict = {}
-        for section_name in self._config.keys():
-            all_configs_dict[section_name] = self._get_section(section_name)
-        return all_configs_dict
+
+########################################
+# (2) Consumer config classes
+########################################
+
+
+class KafkaConsumerProperties(BaseModel):
+    bootstrap_servers: str
+    group_id: str
+    auto_offset_reset: str
+    partition_assignment_strategy: str
+    """
+    Model representing configuration properties for a Kafka consumer.
+    Args:
+        bootstrap_servers (str): Comma-separated Kafka server addresses (brokers).
+        group_id (str): Consumer group ID for Kafka.
+        auto_offset_reset (str): Policy for resetting offsets.
+        partition_assignment_strategy (str): Strategy for partition assignment.
+    """
+
+    model_config = ConfigDict(
+        alias_generator=AliasGenerator(
+            serialization_alias=underscore_to_dot,
+        )
+    )
+
+
+class ConsumerAppConfig(BaseModel):
+    kafka_topic: str
+    max_output_file_size: int
+    flush_interval: int
+    root_path: str
+    """
+    Model representing configuration properties for the producer app.
+    Args:
+        kafka_topic (str): topic which producer app would send messages to
+        max_output_file_size (int): file size (in bytes) not to be exceeded when flushing messages into a file
+        flush_interval (int): the interval (in seconds) for consumed message queue to be flushed to a new file
+        root_path (str): path to local folder where files with events will be saved 
+    """
 
 
 class MinioProperties(BaseSettings):
     endpoint: str
-    access_key: str
-    secret_key: str
+    access_key: str | None
+    secret_key: str | None
     secure: bool
     """
     Model representing configuration properties for MinIO.
     Args:
         endpoint (str): MinIO server endpoint.
-        access_key (str): Access key for authentication (username).
-        secret_key (str): Secret key for authentication (password).
+        access_key (str): Access key for authentication (username). NOTE: Should be fetched from env vars
+        secret_key (str): Secret key for authentication (password). NOTE: Should be fetched from env vars
         secure (bool): Flag indicating whether to use a secure connection.
     """
 
-    class Config:
-        env_prefix = "MINIO_"
+    model_config = SettingsConfigDict(env_prefix="MINIO_")
+
+    # NOTE: This is a hack that allows to overcome pydantic args checks errors related to env vars
+    # (access_key and secret_key) when we istantiate MinioProperties class from ConsumerConfig class
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+
+class ConsumerConfig(BaseModel):
+    kafka: KafkaConsumerProperties
+    app: ConsumerAppConfig
+    minio: MinioProperties
+    """
+    Model representing configuration properties for a Kafka producer and producer app.
+    Args:
+        kafka (KafkaConsumerProperties): model representing configuration properties for a Kafka consumer.
+        app (ConsumerAppConfig): model representing configuration properties for the consumer app.
+        minio (ProducerAppConfig): model representing configuration properties for MinIO.
+    """
+
+
+########################################
+# (3) Functions to get configs
+########################################
 
 
 @lru_cache
-def get_config() -> dict[str, dict[str, Any]]:
+def get_producer_config() -> ProducerConfig:
     """
-    Retrieve the application configuration, cached for improved performance.
-    Output:
-        dict[str, dict[str, Any]]: A dictionary containing all configuration sections.
+    Retrieves and parses the Kafka producer configuration from a configuration file. 
+    It uses lru_cache to cache the configuration, ensuring that subsequent calls to this function 
+    do not re-read the file but instead return the cached configuration.
     """
-    CONFIG_FILE_PATH = get_config_path()
-    config_parser = ConfigParser(CONFIG_FILE_PATH)
-    all_configs_dict = config_parser.get_all_configs_dict()
+    config_fpath = get_config_path()
+    with open(config_fpath, "rb") as file:
+        raw_config = tomllib.load(file)
+    raw_producer_config = raw_config.get("producer")
+    if not raw_producer_config:
+        logger.error("Can't open producer config file")
+        raise Exception("Can't open producer config file")
+    config = ProducerConfig(**raw_producer_config)
+    return config
 
-    if not all_configs_dict:
-        all_configs_dict = {}
 
-    return all_configs_dict
+@lru_cache
+def get_consumer_config() -> ConsumerConfig:
+    """
+    This function retrieves and parses the Kafka consumer configuration from a configuration file. 
+    It uses lru_cache to cache the configuration, ensuring that subsequent calls to this function 
+    do not re-read the file but instead return the cached configuration.
+    """
+    config_fpath = get_config_path()
+    with open(config_fpath, "rb") as file:
+        raw_config = tomllib.load(file)
+    raw_consumer_config = raw_config.get("consumer")
+    if not raw_consumer_config:
+        logger.error("Can't open consumer config file")
+        raise Exception("Can't open consumer config file")
+    config = ConsumerConfig(**raw_consumer_config)
+    return config

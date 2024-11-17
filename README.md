@@ -22,11 +22,11 @@ The `event-collector` is a set of simple and scalable applications designed to m
 
 ## Installation
 **Prerequisites:** 
-* Python version 3.11
-* Poetry version 1.8.3
-* [Docker Desktop](https://docs.docker.com/desktop/) installed
+* Python version 3.11 (it's worth using [pyenv](https://github.com/pyenv/pyenv?tab=readme-ov-file#installation) to install it)
+* [Poetry](https://python-poetry.org/docs/#installing-with-the-official-installer) version `1.8.3`
+* [Docker Desktop](https://docs.docker.com/desktop/) for Mac OS or [Docker engine](https://docs.docker.com/engine/install/) and [docker-compose plugin](https://docs.docker.com/compose/install/linux/) for Linux
 
-**Setup steps**
+**Project Setup**
 * Clone the repository `git clone https://github.com/CarexNigra/event-collector.git`
 * Navigate to the directory `cd event-collector`
 * Install dependencies `make install`
